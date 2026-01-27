@@ -44,9 +44,9 @@ export class NesImageRenderer {
 					const srcX = Math.floor((x / targetWidth) * FRAME_WIDTH);
 					const color = frameBuffer[srcY * FRAME_WIDTH + srcX] ?? 0;
 					const idx = (y * targetWidth + x) * 4;
-					png.data[idx] = (color >> 16) & 0xff;
+					png.data[idx] = color & 0xff;
 					png.data[idx + 1] = (color >> 8) & 0xff;
-					png.data[idx + 2] = color & 0xff;
+					png.data[idx + 2] = (color >> 16) & 0xff;
 					png.data[idx + 3] = 0xff;
 				}
 			}

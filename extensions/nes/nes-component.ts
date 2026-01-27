@@ -56,9 +56,9 @@ function averageBlock(
 		const rowOffset = y * FRAME_WIDTH;
 		for (let x = startX; x < endX; x += 1) {
 			const color = frameBuffer[rowOffset + x] ?? 0;
-			r += (color >> 16) & 0xff;
+			r += color & 0xff;
 			g += (color >> 8) & 0xff;
-			b += color & 0xff;
+			b += (color >> 16) & 0xff;
 			count += 1;
 		}
 	}
