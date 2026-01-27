@@ -14,7 +14,8 @@
     "spec.md"
   ],
   "dependencies": {
-    "jsnes": "^1.2.1"
+    "jsnes": "^1.2.1",
+    "pngjs": "^7.0.0"
   },
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": "*",

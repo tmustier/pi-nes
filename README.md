@@ -43,6 +43,8 @@ Example:
   "romDir": "/Users/you/roms/nes",
   "saveDir": "/Users/you/.pi/nes/saves",
   "enableAudio": false,
+  "renderer": "image",
+  "pixelScale": 1,
   "keybindings": {
     "up": ["up", "w"],
     "down": ["down", "s"],
@@ -55,6 +57,10 @@ Example:
   }
 }
 ```
+
+## Rendering
+
+Default renderer is `image`, which uses Kitty's image protocol for high resolution. Set `renderer: "text"` if you prefer ANSI half-block rendering. You can tweak `pixelScale` to 1.5–2.0 for larger images (at the cost of performance).
 
 ## Audio
 

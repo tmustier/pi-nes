@@ -100,6 +100,8 @@ async function attachSession(
 						done(undefined);
 					},
 					config.keybindings,
+					config.renderer,
+					config.pixelScale,
 				);
 			},
 			{

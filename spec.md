@@ -46,7 +46,8 @@ pi-nes/
 
 ## Rendering
 - Use **overlay** via `ctx.ui.custom(..., { overlay: true })`.
-- Convert 256×240 framebuffer to terminal lines using **half‑block** characters (▀) with 24‑bit color.
+- Default: render 256×240 frames via Kitty **image protocol** for higher resolution.
+- Fallback: half‑block ANSI renderer for terminals without image support.
 - Target 60fps with a `setInterval` loop; throttle if terminal width is small.
 
 ## Input Mapping (default)
@@ -66,6 +67,8 @@ pi-nes/
   - `romDir`
   - `saveDir`
   - `enableAudio`
+  - `renderer` ("image" or "text")
+  - `pixelScale` (float, e.g. 1.5)
   - `keybindings` (button-to-keys map, e.g. `{ "a": ["z"] }`)
 
 Note: audio output is currently disabled; setting `enableAudio` will show a warning.

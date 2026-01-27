@@ -3,10 +3,14 @@ import os from "node:os";
 import path from "node:path";
 import { DEFAULT_INPUT_MAPPING, type InputMapping } from "./input-map.js";
 
+export type RendererMode = "image" | "text";
+
 export interface NesConfig {
 	romDir: string;
 	saveDir: string;
 	enableAudio: boolean;
+	renderer: RendererMode;
+	pixelScale: number;
 	keybindings: InputMapping;
 }
 
@@ -14,6 +18,8 @@ export const DEFAULT_CONFIG: NesConfig = {
 	romDir: path.join(os.homedir(), "roms", "nes"),
 	saveDir: path.join(os.homedir(), ".pi", "nes", "saves"),
 	enableAudio: false,
+	renderer: "image",
+	pixelScale: 1,
 	keybindings: cloneMapping(DEFAULT_INPUT_MAPPING),
 };
 
@@ -21,6 +27,8 @@ interface RawConfig {
 	romDir?: unknown;
 	saveDir?: unknown;
 	enableAudio?: unknown;
+	renderer?: unknown;
+	pixelScale?: unknown;
 	keybindings?: unknown;
 }
 
@@ -35,6 +43,8 @@ export function normalizeConfig(raw: unknown): NesConfig {
 		saveDir:
 			typeof parsed.saveDir === "string" && parsed.saveDir.length > 0 ? parsed.saveDir : DEFAULT_CONFIG.saveDir,
 		enableAudio: typeof parsed.enableAudio === "boolean" ? parsed.enableAudio : DEFAULT_CONFIG.enableAudio,
+		renderer: parsed.renderer === "text" ? "text" : DEFAULT_CONFIG.renderer,
+		pixelScale: normalizePixelScale(parsed.pixelScale),
 		keybindings: normalizeKeybindings(parsed.keybindings),
 	};
 }
@@ -57,6 +67,13 @@ export async function saveConfig(config: NesConfig): Promise<void> {
 	const configPath = getConfigPath();
 	await fs.mkdir(path.dirname(configPath), { recursive: true });
 	await fs.writeFile(configPath, formatConfig(config));
+}
+
+function normalizePixelScale(raw: unknown): number {
+	if (typeof raw !== "number" || Number.isNaN(raw)) {
+		return DEFAULT_CONFIG.pixelScale;
+	}
+	return Math.min(4, Math.max(0.5, raw));
 }
 
 function normalizeKeybindings(raw: unknown): InputMapping {

@@ -3,11 +3,11 @@ import { isKeyRelease, matchesKey, truncateToWidth } from "@mariozechner/pi-tui"
 import type { InputMapping } from "./input-map.js";
 import { DEFAULT_INPUT_MAPPING, getMappedButtons } from "./input-map.js";
 import type { NesCore } from "./nes-core.js";
+import type { RendererMode } from "./renderer.js";
+import { NesImageRenderer } from "./renderer.js";
 
 const FRAME_WIDTH = 256;
 const FRAME_HEIGHT = 240;
-const ASPECT_RATIO = FRAME_WIDTH / (FRAME_HEIGHT / 2);
-const MIN_ROWS = 10;
 
 function renderHalfBlock(
 	frameBuffer: ReadonlyArray<number>,
@@ -74,6 +74,9 @@ export class NesOverlayComponent implements Component {
 	wantsKeyRelease = true;
 	private readonly inputMapping: InputMapping;
 	private readonly tapTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	private readonly imageRenderer = new NesImageRenderer();
+	private readonly rendererMode: RendererMode;
+	private readonly pixelScale: number;
 
 	constructor(
 		private readonly tui: TUI,
@@ -81,8 +84,12 @@ export class NesOverlayComponent implements Component {
 		private readonly onDetach: () => void,
 		private readonly onQuit: () => void,
 		inputMapping: InputMapping = DEFAULT_INPUT_MAPPING,
+		rendererMode: RendererMode = "image",
+		pixelScale = 1,
 	) {
 		this.inputMapping = inputMapping;
+		this.rendererMode = rendererMode;
+		this.pixelScale = pixelScale;
 	}
 
 	handleInput(data: string): void {
@@ -116,6 +123,20 @@ export class NesOverlayComponent implements Component {
 		if (width <= 0) {
 			return [];
 		}
+
+		const footer = " NES | Ctrl+Q=Detach | Q=Quit | WASD/Arrows=Move | Z/X=A/B | Enter/Space=Start | Tab=Select";
+		if (this.rendererMode === "image") {
+			const lines = this.imageRenderer.render(
+				this.core.getFrameBuffer(),
+				this.tui,
+				width,
+				1,
+				this.pixelScale,
+			);
+			lines.push(truncateToWidth(`\x1b[2m${footer}\x1b[0m`, width));
+			return lines;
+		}
+
 		const availableRows = Math.max(1, this.tui.terminal.rows - 2);
 		const maxFrameRows = Math.max(1, availableRows - 1);
 		const scaleX = Math.max(1, Math.ceil(FRAME_WIDTH / width));
@@ -127,8 +148,6 @@ export class NesOverlayComponent implements Component {
 
 		const rawLines = renderHalfBlock(this.core.getFrameBuffer(), targetCols, targetRows, scaleX, scaleY);
 		const lines = rawLines.map((line) => truncateToWidth(`${padPrefix}${line}`, width));
-
-		const footer = " NES | Ctrl+Q=Detach | Q=Quit | WASD/Arrows=Move | Z/X=A/B | Enter=Start | Tab=Select";
 		lines.push(truncateToWidth(`\x1b[2m${padPrefix}${footer}\x1b[0m`, width));
 		return lines;
 	}
