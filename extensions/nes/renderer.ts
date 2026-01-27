@@ -1,16 +1,25 @@
 import { PNG } from "pngjs";
 import type { TUI } from "@mariozechner/pi-tui";
 import { Image } from "@mariozechner/pi-tui";
-import { allocateImageId, deleteKittyImage, getCapabilities, getCellDimensions } from "@mariozechner/pi-tui";
+import {
+	allocateImageId,
+	calculateImageRows,
+	deleteKittyImage,
+	getCapabilities,
+	getCellDimensions,
+} from "@mariozechner/pi-tui";
 
 const FRAME_WIDTH = 256;
 const FRAME_HEIGHT = 240;
+const KITTY_CHUNK_SIZE = 4096;
 
 export type RendererMode = "image" | "text";
 
 export class NesImageRenderer {
 	private readonly imageId = allocateImageId();
 	private cachedImage?: { base64: string; width: number; height: number };
+	private cachedRaw?: { base64: string; sequence: string; columns: number; rows: number; hash: number };
+	private readonly rawBuffer = Buffer.alloc(FRAME_WIDTH * FRAME_HEIGHT * 3);
 	private lastFrameHash = 0;
 
 	render(
@@ -19,6 +28,92 @@ export class NesImageRenderer {
 		widthCells: number,
 		footerRows = 1,
 		pixelScale = 1,
+	): string[] {
+		const caps = getCapabilities();
+		if (caps.images === "kitty") {
+			return this.renderKittyRaw(frameBuffer, tui, widthCells, footerRows, pixelScale);
+		}
+
+		return this.renderPng(frameBuffer, tui, widthCells, footerRows, pixelScale);
+	}
+
+	dispose(tui: TUI): void {
+		if (getCapabilities().images === "kitty") {
+			tui.terminal.write(deleteKittyImage(this.imageId));
+		}
+		this.cachedImage = undefined;
+		this.cachedRaw = undefined;
+		this.lastFrameHash = 0;
+	}
+
+	private renderKittyRaw(
+		frameBuffer: ReadonlyArray<number>,
+		tui: TUI,
+		widthCells: number,
+		footerRows: number,
+		pixelScale: number,
+	): string[] {
+		const maxRows = Math.max(1, tui.terminal.rows - footerRows - 1);
+		const cell = getCellDimensions();
+		const maxWidthByRows = Math.floor(
+			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
+		);
+		const maxWidthCells = Math.max(1, Math.min(widthCells, maxWidthByRows));
+		const effectiveScale = Math.min(1, Math.max(0.5, pixelScale));
+		const targetColumns = Math.max(1, Math.min(maxWidthCells, Math.floor(maxWidthCells * effectiveScale)));
+		const rows = Math.max(
+			1,
+			Math.min(
+				maxRows,
+				calculateImageRows({ widthPx: FRAME_WIDTH, heightPx: FRAME_HEIGHT }, targetColumns, cell),
+			),
+		);
+
+		const hash = hashFrame(frameBuffer, FRAME_WIDTH, FRAME_HEIGHT);
+		let cached = this.cachedRaw;
+
+		if (!cached || cached.hash !== hash) {
+			this.fillRawBuffer(frameBuffer);
+			cached = {
+				base64: this.rawBuffer.toString("base64"),
+				sequence: "",
+				columns: targetColumns,
+				rows,
+				hash,
+			};
+		}
+
+		if (cached.columns !== targetColumns || cached.rows !== rows || cached.sequence.length === 0) {
+			cached.sequence = encodeKittyRaw(cached.base64, {
+				widthPx: FRAME_WIDTH,
+				heightPx: FRAME_HEIGHT,
+				columns: targetColumns,
+				rows,
+				imageId: this.imageId,
+				zIndex: -1,
+			});
+			cached.columns = targetColumns;
+			cached.rows = rows;
+		}
+
+		this.cachedRaw = cached;
+
+		const lines: string[] = [];
+		for (let i = 0; i < rows - 1; i += 1) {
+			lines.push("");
+		}
+		const moveUp = rows > 1 ? `\x1b[${rows - 1}A` : "";
+		lines.push(moveUp + cached.sequence);
+
+		return lines;
+	}
+
+	private renderPng(
+		frameBuffer: ReadonlyArray<number>,
+		tui: TUI,
+		widthCells: number,
+		footerRows: number,
+		pixelScale: number,
 	): string[] {
 		const maxRows = Math.max(1, tui.terminal.rows - footerRows - 1);
 		const cell = getCellDimensions();
@@ -50,7 +145,7 @@ export class NesImageRenderer {
 					png.data[idx + 3] = 0xff;
 				}
 			}
-			const buffer = PNG.sync.write(png);
+			const buffer = PNG.sync.write(png, { deflateLevel: 0, filterType: 0 });
 			this.cachedImage = {
 				base64: buffer.toString("base64"),
 				width: targetWidth,
@@ -70,13 +165,60 @@ export class NesImageRenderer {
 		return image.render(widthCells);
 	}
 
-	dispose(tui: TUI): void {
-		if (getCapabilities().images === "kitty") {
-			tui.terminal.write(deleteKittyImage(this.imageId));
+	private fillRawBuffer(frameBuffer: ReadonlyArray<number>): void {
+		let offset = 0;
+		for (let i = 0; i < FRAME_WIDTH * FRAME_HEIGHT; i += 1) {
+			const color = frameBuffer[i] ?? 0;
+			this.rawBuffer[offset] = color & 0xff;
+			this.rawBuffer[offset + 1] = (color >> 8) & 0xff;
+			this.rawBuffer[offset + 2] = (color >> 16) & 0xff;
+			offset += 3;
 		}
-		this.cachedImage = undefined;
-		this.lastFrameHash = 0;
 	}
+}
+
+function encodeKittyRaw(
+	base64Data: string,
+	options: {
+		widthPx: number;
+		heightPx: number;
+		columns?: number;
+		rows?: number;
+		imageId?: number;
+		zIndex?: number;
+	},
+): string {
+	const params: string[] = ["a=T", "f=24", "q=2", `s=${options.widthPx}`, `v=${options.heightPx}`];
+	if (options.columns) params.push(`c=${options.columns}`);
+	if (options.rows) params.push(`r=${options.rows}`);
+	if (options.imageId) params.push(`i=${options.imageId}`);
+	if (options.zIndex !== undefined) params.push(`z=${options.zIndex}`);
+
+	if (base64Data.length <= KITTY_CHUNK_SIZE) {
+		return `\x1b_G${params.join(",")};${base64Data}\x1b\\`;
+	}
+
+	const chunks: string[] = [];
+	let offset = 0;
+	let isFirst = true;
+
+	while (offset < base64Data.length) {
+		const chunk = base64Data.slice(offset, offset + KITTY_CHUNK_SIZE);
+		const isLast = offset + KITTY_CHUNK_SIZE >= base64Data.length;
+
+		if (isFirst) {
+			chunks.push(`\x1b_G${params.join(",")},m=1;${chunk}\x1b\\`);
+			isFirst = false;
+		} else if (isLast) {
+			chunks.push(`\x1b_Gm=0;${chunk}\x1b\\`);
+		} else {
+			chunks.push(`\x1b_Gm=1;${chunk}\x1b\\`);
+		}
+
+		offset += KITTY_CHUNK_SIZE;
+	}
+
+	return chunks.join("");
 }
 
 function hashFrame(frameBuffer: ReadonlyArray<number>, width: number, height: number): number {

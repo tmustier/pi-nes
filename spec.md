@@ -46,7 +46,7 @@ pi-nes/
 
 ## Rendering
 - Use **overlay** via `ctx.ui.custom(..., { overlay: true })`.
-- Default: render 256×240 frames via Kitty **image protocol** for higher resolution (full-screen, no overlay), throttled to reduce CPU load.
+- Default: render 256×240 frames via Kitty **image protocol** for higher resolution (full-screen, no overlay), using raw RGB frames on Kitty for performance and PNG fallback elsewhere.
 - Fallback: half‑block ANSI renderer for terminals without image support (overlay).
 - Target 60fps emulation with frame skipping if rendering is slow.
 
