@@ -30,6 +30,13 @@ Improve emulation speed and reduce stutter while keeping high‑resolution rende
 - Large **base64 graphics payloads** stall the event loop and throttle emulation.
 - TUI diffing requires the image line to change each frame; raw images with constant escape sequences won’t re‑render without an injected marker.
 
+## External Research (What Others Do)
+- **Kitty graphics protocol** explicitly supports *file* and *shared memory* transports (`t=f` and `t=s`) to avoid base64 payloads. Shared memory is the fastest local option. ([Kitty docs](https://sw.kovidgoyal.net/kitty/graphics-protocol/#the-transmission-medium))
+- **Kitty icat** exposes `--transfer-mode` (`detect`, `file`, `memory`, `stream`) and defaults to auto‑detecting local transfers. ([icat source/options](https://github.com/kovidgoyal/kitty/blob/master/kittens/icat/main.py))
+- **WezTerm** added support for Kitty image protocol **shared memory** transport (PR #1810), confirming it’s a standard, performant path used by terminal implementers. ([WezTerm changelog](https://github.com/wez/wezterm/blob/master/docs/changelog.md#20220408-101518-b908e2dd))
+- **Ghostty discussion** notes that the fastest option is shared memory and that **mpv uses shared memory** for Kitty graphics. ([Ghostty discussion](https://github.com/ghostty-org/ghostty/discussions/5350))
+- **Foot issue** notes shared memory avoids chunking/base64 and improves local performance. ([foot issue #481](https://codeberg.org/dnkl/foot/issues/481))
+
 ## New Approach (Current Plan)
 
 ### ✅ Step 1: Kitty file transport for raw RGB frames (implemented)
