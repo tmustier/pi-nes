@@ -77,6 +77,7 @@ export class NesOverlayComponent implements Component {
 	private readonly imageRenderer = new NesImageRenderer();
 	private readonly rendererMode: RendererMode;
 	private readonly pixelScale: number;
+	private imageCleared = false;
 
 	constructor(
 		private readonly tui: TUI,
@@ -95,10 +96,12 @@ export class NesOverlayComponent implements Component {
 	handleInput(data: string): void {
 		const released = isKeyRelease(data);
 		if (!released && matchesKey(data, "ctrl+q")) {
+			this.cleanupImage();
 			this.onDetach();
 			return;
 		}
-		if (!released && (data === "q" || data === "Q")) {
+		if (!released && (matchesKey(data, "q") || matchesKey(data, "shift+q"))) {
+			this.cleanupImage();
 			this.onQuit();
 			return;
 		}
@@ -155,10 +158,19 @@ export class NesOverlayComponent implements Component {
 	invalidate(): void {}
 
 	dispose(): void {
+		this.cleanupImage();
 		for (const timer of this.tapTimers.values()) {
 			clearTimeout(timer);
 		}
 		this.tapTimers.clear();
+	}
+
+	private cleanupImage(): void {
+		if (this.rendererMode !== "image" || this.imageCleared) {
+			return;
+		}
+		this.imageRenderer.dispose(this.tui);
+		this.imageCleared = true;
 	}
 
 	private tapButton(button: "start" | "select"): void {

@@ -1,7 +1,7 @@
 import { PNG } from "pngjs";
 import type { TUI } from "@mariozechner/pi-tui";
 import { Image } from "@mariozechner/pi-tui";
-import { allocateImageId, getCellDimensions } from "@mariozechner/pi-tui";
+import { allocateImageId, deleteKittyImage, getCapabilities, getCellDimensions } from "@mariozechner/pi-tui";
 
 const FRAME_WIDTH = 256;
 const FRAME_HEIGHT = 240;
@@ -68,6 +68,14 @@ export class NesImageRenderer {
 		);
 
 		return image.render(widthCells);
+	}
+
+	dispose(tui: TUI): void {
+		if (getCapabilities().images === "kitty") {
+			tui.terminal.write(deleteKittyImage(this.imageId));
+		}
+		this.cachedImage = undefined;
+		this.lastFrameHash = 0;
 	}
 }
 
