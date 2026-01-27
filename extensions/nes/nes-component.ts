@@ -26,12 +26,12 @@ function renderHalfBlock(frameBuffer: ReadonlyArray<number>, targetCols: number,
 			const idx2 = srcY2 * FRAME_WIDTH + srcX;
 			const color1 = frameBuffer[idx1] ?? 0;
 			const color2 = frameBuffer[idx2] ?? 0;
-			const r1 = color1 & 0xff;
+			const r1 = (color1 >> 16) & 0xff;
 			const g1 = (color1 >> 8) & 0xff;
-			const b1 = (color1 >> 16) & 0xff;
-			const r2 = color2 & 0xff;
+			const b1 = color1 & 0xff;
+			const r2 = (color2 >> 16) & 0xff;
 			const g2 = (color2 >> 8) & 0xff;
-			const b2 = (color2 >> 16) & 0xff;
+			const b2 = color2 & 0xff;
 			line += `\x1b[38;2;${r1};${g1};${b1}m\x1b[48;2;${r2};${g2};${b2}m▀`;
 		}
 		line += "\x1b[0m";
