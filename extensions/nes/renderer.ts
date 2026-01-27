@@ -3,7 +3,6 @@ import type { TUI } from "@mariozechner/pi-tui";
 import { Image } from "@mariozechner/pi-tui";
 import {
 	allocateImageId,
-	calculateImageRows,
 	deleteKittyImage,
 	getCapabilities,
 	getCellDimensions,
@@ -59,14 +58,18 @@ export class NesImageRenderer {
 			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
 		);
 		const maxWidthCells = Math.max(1, Math.min(widthCells, maxWidthByRows));
-		const effectiveScale = Math.min(1, Math.max(0.5, pixelScale));
-		const targetColumns = Math.max(1, Math.min(maxWidthCells, Math.floor(maxWidthCells * effectiveScale)));
+		const maxWidthPx = Math.max(1, maxWidthCells * cell.widthPx);
+		const maxHeightPx = Math.max(1, maxRows * cell.heightPx);
+		const maxScale = Math.min(maxWidthPx / FRAME_WIDTH, maxHeightPx / FRAME_HEIGHT);
+		const requestedScale = Math.max(0.5, pixelScale) * maxScale;
+		const scale = Math.min(maxScale, requestedScale);
+		const targetColumns = Math.max(
+			1,
+			Math.min(maxWidthCells, Math.floor((FRAME_WIDTH * scale) / cell.widthPx)),
+		);
 		const rows = Math.max(
 			1,
-			Math.min(
-				maxRows,
-				calculateImageRows({ widthPx: FRAME_WIDTH, heightPx: FRAME_HEIGHT }, targetColumns, cell),
-			),
+			Math.min(maxRows, Math.floor((FRAME_HEIGHT * scale) / cell.heightPx)),
 		);
 
 		const hash = hashFrame(frameBuffer, FRAME_WIDTH, FRAME_HEIGHT);

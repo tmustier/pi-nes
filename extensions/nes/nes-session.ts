@@ -5,7 +5,7 @@ import { saveSram } from "./saves.js";
 const DEFAULT_FRAME_INTERVAL_MS = 1000 / 60;
 const DEFAULT_RENDER_INTERVAL_MS = DEFAULT_FRAME_INTERVAL_MS;
 const DEFAULT_SAVE_INTERVAL_MS = 5000;
-const DEFAULT_MAX_CATCH_UP_FRAMES = 5;
+const DEFAULT_MAX_CATCH_UP_FRAMES = 12;
 
 export interface NesSessionOptions {
 	core: NesCore;
