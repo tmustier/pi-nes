@@ -6,6 +6,7 @@ import { PNG } from "pngjs";
 import type { TUI } from "@mariozechner/pi-tui";
 import { Image } from "@mariozechner/pi-tui";
 import { allocateImageId, deleteKittyImage, getCapabilities, getCellDimensions } from "@mariozechner/pi-tui";
+import type { FrameBuffer } from "./nes-core.js";
 
 const FRAME_WIDTH = 256;
 const FRAME_HEIGHT = 240;
@@ -61,7 +62,7 @@ export class NesImageRenderer {
 	private rawVersion = 0;
 
 	render(
-		frameBuffer: ReadonlyArray<number>,
+		frameBuffer: FrameBuffer,
 		tui: TUI,
 		widthCells: number,
 		footerRows = 1,
@@ -114,7 +115,7 @@ export class NesImageRenderer {
 	}
 
 	private renderKittySharedMemory(
-		frameBuffer: ReadonlyArray<number>,
+		frameBuffer: FrameBuffer,
 		tui: TUI,
 		widthCells: number,
 		footerRows: number,
@@ -168,7 +169,7 @@ export class NesImageRenderer {
 	}
 
 	private renderKittyRaw(
-		frameBuffer: ReadonlyArray<number>,
+		frameBuffer: FrameBuffer,
 		tui: TUI,
 		widthCells: number,
 		footerRows: number,
@@ -223,7 +224,7 @@ export class NesImageRenderer {
 	}
 
 	private renderPng(
-		frameBuffer: ReadonlyArray<number>,
+		frameBuffer: FrameBuffer,
 		tui: TUI,
 		widthCells: number,
 		footerRows: number,
@@ -251,11 +252,11 @@ export class NesImageRenderer {
 				const srcY = Math.floor((y / targetHeight) * FRAME_HEIGHT);
 				for (let x = 0; x < targetWidth; x += 1) {
 					const srcX = Math.floor((x / targetWidth) * FRAME_WIDTH);
-					const color = frameBuffer[srcY * FRAME_WIDTH + srcX] ?? 0;
+					const [r, g, b] = readRgb(frameBuffer, srcY * FRAME_WIDTH + srcX);
 					const idx = (y * targetWidth + x) * 4;
-					png.data[idx] = color & 0xff;
-					png.data[idx + 1] = (color >> 8) & 0xff;
-					png.data[idx + 2] = (color >> 16) & 0xff;
+					png.data[idx] = r;
+					png.data[idx + 1] = g;
+					png.data[idx + 2] = b;
 					png.data[idx + 3] = 0xff;
 				}
 			}
@@ -279,14 +280,28 @@ export class NesImageRenderer {
 		return image.render(widthCells);
 	}
 
-	private fillRawBuffer(frameBuffer: ReadonlyArray<number>): void {
+	private fillRawBuffer(frameBuffer: FrameBuffer): void {
 		this.fillRawBufferTarget(frameBuffer, this.rawBuffer);
 	}
 
-	private fillRawBufferTarget(frameBuffer: ReadonlyArray<number>, target: Uint8Array): void {
+	private fillRawBufferTarget(frameBuffer: FrameBuffer, target: Uint8Array): void {
+		if (frameBuffer.format === "rgb") {
+			const source = frameBuffer.data as ReadonlyArray<number>;
+			if (source instanceof Uint8Array) {
+				target.set(source.subarray(0, RAW_FRAME_BYTES));
+				return;
+			}
+			const max = Math.min(source.length, RAW_FRAME_BYTES);
+			for (let i = 0; i < max; i += 1) {
+				target[i] = source[i] ?? 0;
+			}
+			return;
+		}
+
 		let offset = 0;
+		const source = frameBuffer.data as ReadonlyArray<number>;
 		for (let i = 0; i < FRAME_WIDTH * FRAME_HEIGHT; i += 1) {
-			const color = frameBuffer[i] ?? 0;
+			const color = source[i] ?? 0;
 			target[offset] = color & 0xff;
 			target[offset + 1] = (color >> 8) & 0xff;
 			target[offset + 2] = (color >> 16) & 0xff;
@@ -425,14 +440,38 @@ function resolveRawDir(): string {
 	return os.tmpdir();
 }
 
-function hashFrame(frameBuffer: ReadonlyArray<number>, width: number, height: number): number {
+function readRgb(frameBuffer: FrameBuffer, index: number): [number, number, number] {
+	if (frameBuffer.format === "rgb") {
+		const data = frameBuffer.data as ReadonlyArray<number>;
+		const base = index * 3;
+		return [data[base] ?? 0, data[base + 1] ?? 0, data[base + 2] ?? 0];
+	}
+	const data = frameBuffer.data as ReadonlyArray<number>;
+	const color = data[index] ?? 0;
+	return [color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff];
+}
+
+function readPacked(frameBuffer: FrameBuffer, index: number): number {
+	if (frameBuffer.format === "packed") {
+		const data = frameBuffer.data as ReadonlyArray<number>;
+		return data[index] ?? 0;
+	}
+	const data = frameBuffer.data as ReadonlyArray<number>;
+	const base = index * 3;
+	const r = data[base] ?? 0;
+	const g = data[base + 1] ?? 0;
+	const b = data[base + 2] ?? 0;
+	return r | (g << 8) | (b << 16);
+}
+
+function hashFrame(frameBuffer: FrameBuffer, width: number, height: number): number {
 	let hash = width ^ (height << 16);
 	const stepX = Math.max(1, Math.floor(FRAME_WIDTH / 64));
 	const stepY = Math.max(1, Math.floor(FRAME_HEIGHT / 64));
 	for (let y = 0; y < FRAME_HEIGHT; y += stepY) {
 		const rowOffset = y * FRAME_WIDTH;
 		for (let x = 0; x < FRAME_WIDTH; x += stepX) {
-			const color = frameBuffer[rowOffset + x] ?? 0;
+			const color = readPacked(frameBuffer, rowOffset + x);
 			hash = ((hash << 5) - hash + color) | 0;
 		}
 	}

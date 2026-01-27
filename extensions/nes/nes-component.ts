@@ -2,15 +2,26 @@ import type { Component, TUI } from "@mariozechner/pi-tui";
 import { isKeyRelease, matchesKey, truncateToWidth } from "@mariozechner/pi-tui";
 import type { InputMapping } from "./input-map.js";
 import { DEFAULT_INPUT_MAPPING, getMappedButtons } from "./input-map.js";
-import type { NesCore } from "./nes-core.js";
+import type { FrameBuffer, NesCore } from "./nes-core.js";
 import type { RendererMode } from "./renderer.js";
 import { NesImageRenderer } from "./renderer.js";
 
 const FRAME_WIDTH = 256;
 const FRAME_HEIGHT = 240;
 
+function readRgb(frameBuffer: FrameBuffer, index: number): [number, number, number] {
+	if (frameBuffer.format === "rgb") {
+		const data = frameBuffer.data as ReadonlyArray<number>;
+		const base = index * 3;
+		return [data[base] ?? 0, data[base + 1] ?? 0, data[base + 2] ?? 0];
+	}
+	const data = frameBuffer.data as ReadonlyArray<number>;
+	const color = data[index] ?? 0;
+	return [color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff];
+}
+
 function renderHalfBlock(
-	frameBuffer: ReadonlyArray<number>,
+	frameBuffer: FrameBuffer,
 	targetCols: number,
 	targetRows: number,
 	scaleX: number,
@@ -39,7 +50,7 @@ function renderHalfBlock(
 }
 
 function averageBlock(
-	frameBuffer: ReadonlyArray<number>,
+	frameBuffer: FrameBuffer,
 	startX: number,
 	startY: number,
 	blockWidth: number,
@@ -47,18 +58,18 @@ function averageBlock(
 ): [number, number, number] {
 	const endX = Math.min(startX + blockWidth, FRAME_WIDTH);
 	const endY = Math.min(startY + blockHeight, FRAME_HEIGHT);
-	let r = 0;
-	let g = 0;
-	let b = 0;
+	let rSum = 0;
+	let gSum = 0;
+	let bSum = 0;
 	let count = 0;
 
 	for (let y = startY; y < endY; y += 1) {
 		const rowOffset = y * FRAME_WIDTH;
 		for (let x = startX; x < endX; x += 1) {
-			const color = frameBuffer[rowOffset + x] ?? 0;
-			r += color & 0xff;
-			g += (color >> 8) & 0xff;
-			b += (color >> 16) & 0xff;
+			const [r, g, b] = readRgb(frameBuffer, rowOffset + x);
+			rSum += r;
+			gSum += g;
+			bSum += b;
 			count += 1;
 		}
 	}
@@ -67,7 +78,7 @@ function averageBlock(
 		return [0, 0, 0];
 	}
 
-	return [Math.round(r / count), Math.round(g / count), Math.round(b / count)];
+	return [Math.round(rSum / count), Math.round(gSum / count), Math.round(bSum / count)];
 }
 
 export class NesOverlayComponent implements Component {
@@ -128,9 +139,10 @@ export class NesOverlayComponent implements Component {
 		}
 
 		const footer = " NES | Ctrl+Q=Detach | Q=Quit | WASD/Arrows=Move | Z/X=A/B | Enter/Space=Start | Tab=Select";
+		const frameBuffer = this.core.getFrameBuffer();
 		if (this.rendererMode === "image") {
 			const lines = this.imageRenderer.render(
-				this.core.getFrameBuffer(),
+				frameBuffer,
 				this.tui,
 				width,
 				1,
@@ -149,7 +161,7 @@ export class NesOverlayComponent implements Component {
 		const padLeft = Math.max(0, Math.floor((width - targetCols) / 2));
 		const padPrefix = padLeft > 0 ? " ".repeat(padLeft) : "";
 
-		const rawLines = renderHalfBlock(this.core.getFrameBuffer(), targetCols, targetRows, scaleX, scaleY);
+		const rawLines = renderHalfBlock(frameBuffer, targetCols, targetRows, scaleX, scaleY);
 		const lines = rawLines.map((line) => truncateToWidth(`${padPrefix}${line}`, width));
 		lines.push(truncateToWidth(`\x1b[2m${padPrefix}${footer}\x1b[0m`, width));
 		return lines;

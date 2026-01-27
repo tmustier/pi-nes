@@ -4,7 +4,7 @@ import path from "node:path";
 import { DEFAULT_INPUT_MAPPING, type InputMapping } from "./input-map.js";
 
 export type RendererMode = "image" | "text";
-export type NesCoreType = "jsnes" | "wasm";
+export type NesCoreType = "jsnes" | "wasm" | "native";
 
 export interface NesConfig {
 	romDir: string;
@@ -47,7 +47,12 @@ export function normalizeConfig(raw: unknown): NesConfig {
 		saveDir:
 			typeof parsed.saveDir === "string" && parsed.saveDir.length > 0 ? parsed.saveDir : DEFAULT_CONFIG.saveDir,
 		enableAudio: typeof parsed.enableAudio === "boolean" ? parsed.enableAudio : DEFAULT_CONFIG.enableAudio,
-		core: parsed.core === "wasm" ? "wasm" : DEFAULT_CONFIG.core,
+		core:
+			parsed.core === "native"
+				? "native"
+				: parsed.core === "wasm"
+					? "wasm"
+					: DEFAULT_CONFIG.core,
 		renderer: parsed.renderer === "text" ? "text" : DEFAULT_CONFIG.renderer,
 		pixelScale: normalizePixelScale(parsed.pixelScale),
 		keybindings: normalizeKeybindings(parsed.keybindings),
