@@ -16,28 +16,17 @@ function renderHalfBlock(
 	scaleFactor: number,
 ): string[] {
 	const lines: string[] = [];
-	const offset = Math.floor(scaleFactor / 2);
+	const blockSize = Math.max(1, scaleFactor);
 
 	for (let row = 0; row < targetRows; row += 1) {
 		let line = "";
-		const srcY1 = row * 2 * scaleFactor + offset;
-		const srcY2 = row * 2 * scaleFactor + scaleFactor + offset;
-		const safeY1 = Math.min(srcY1, FRAME_HEIGHT - 1);
-		const safeY2 = Math.min(srcY2, FRAME_HEIGHT - 1);
+		const baseY1 = row * 2 * blockSize;
+		const baseY2 = baseY1 + blockSize;
 
 		for (let col = 0; col < targetCols; col += 1) {
-			const srcX = col * scaleFactor + offset;
-			const safeX = Math.min(srcX, FRAME_WIDTH - 1);
-			const idx1 = safeY1 * FRAME_WIDTH + safeX;
-			const idx2 = safeY2 * FRAME_WIDTH + safeX;
-			const color1 = frameBuffer[idx1] ?? 0;
-			const color2 = frameBuffer[idx2] ?? 0;
-			const r1 = (color1 >> 16) & 0xff;
-			const g1 = (color1 >> 8) & 0xff;
-			const b1 = color1 & 0xff;
-			const r2 = (color2 >> 16) & 0xff;
-			const g2 = (color2 >> 8) & 0xff;
-			const b2 = color2 & 0xff;
+			const baseX = col * blockSize;
+			const [r1, g1, b1] = averageBlock(frameBuffer, baseX, baseY1, blockSize);
+			const [r2, g2, b2] = averageBlock(frameBuffer, baseX, baseY2, blockSize);
 			line += `\x1b[38;2;${r1};${g1};${b1}m\x1b[48;2;${r2};${g2};${b2}m▀`;
 		}
 		line += "\x1b[0m";
@@ -47,9 +36,41 @@ function renderHalfBlock(
 	return lines;
 }
 
+function averageBlock(
+	frameBuffer: ReadonlyArray<number>,
+	startX: number,
+	startY: number,
+	blockSize: number,
+): [number, number, number] {
+	const endX = Math.min(startX + blockSize, FRAME_WIDTH);
+	const endY = Math.min(startY + blockSize, FRAME_HEIGHT);
+	let r = 0;
+	let g = 0;
+	let b = 0;
+	let count = 0;
+
+	for (let y = startY; y < endY; y += 1) {
+		const rowOffset = y * FRAME_WIDTH;
+		for (let x = startX; x < endX; x += 1) {
+			const color = frameBuffer[rowOffset + x] ?? 0;
+			r += (color >> 16) & 0xff;
+			g += (color >> 8) & 0xff;
+			b += color & 0xff;
+			count += 1;
+		}
+	}
+
+	if (count === 0) {
+		return [0, 0, 0];
+	}
+
+	return [Math.round(r / count), Math.round(g / count), Math.round(b / count)];
+}
+
 export class NesOverlayComponent implements Component {
 	wantsKeyRelease = true;
 	private readonly inputMapping: InputMapping;
+	private readonly tapTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 	constructor(
 		private readonly tui: TUI,
@@ -78,6 +99,12 @@ export class NesOverlayComponent implements Component {
 		}
 
 		for (const button of buttons) {
+			if (button === "start" || button === "select") {
+				if (!released) {
+					this.tapButton(button);
+				}
+				continue;
+			}
 			this.core.setButton(button, !released);
 		}
 	}
@@ -108,5 +135,23 @@ export class NesOverlayComponent implements Component {
 
 	invalidate(): void {}
 
-	dispose(): void {}
+	dispose(): void {
+		for (const timer of this.tapTimers.values()) {
+			clearTimeout(timer);
+		}
+		this.tapTimers.clear();
+	}
+
+	private tapButton(button: "start" | "select"): void {
+		this.core.setButton(button, true);
+		const existing = this.tapTimers.get(button);
+		if (existing) {
+			clearTimeout(existing);
+		}
+		const timer = setTimeout(() => {
+			this.core.setButton(button, false);
+			this.tapTimers.delete(button);
+		}, 80);
+		this.tapTimers.set(button, timer);
+	}
 }
