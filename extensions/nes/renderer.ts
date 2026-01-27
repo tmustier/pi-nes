@@ -9,7 +9,8 @@ import { allocateImageId, deleteKittyImage, getCapabilities, getCellDimensions }
 const FRAME_WIDTH = 256;
 const FRAME_HEIGHT = 240;
 const RAW_FRAME_BYTES = FRAME_WIDTH * FRAME_HEIGHT * 3;
-const KITTY_CHUNK_SIZE = 4096;
+const FALLBACK_TMP_DIR = "/tmp";
+const SHM_DIR = "/dev/shm";
 
 export type RendererMode = "image" | "text";
 
@@ -18,8 +19,10 @@ export class NesImageRenderer {
 	private cachedImage?: { base64: string; width: number; height: number };
 	private cachedRaw?: { sequence: string; columns: number; rows: number };
 	private readonly rawBuffer = Buffer.alloc(RAW_FRAME_BYTES);
-	private readonly rawFilePath = path.join(os.tmpdir(), `pi-nes-tty-graphics-${this.imageId}.raw`);
+	private readonly rawFileDir = resolveRawDir();
+	private readonly rawFilePath = path.join(this.rawFileDir, `pi-nes-tty-graphics-${this.imageId}.raw`);
 	private readonly rawFilePathBase64 = Buffer.from(this.rawFilePath).toString("base64");
+	private rawFileFd: number | null = null;
 	private lastFrameHash = 0;
 	private rawVersion = 0;
 
@@ -45,6 +48,14 @@ export class NesImageRenderer {
 		this.cachedImage = undefined;
 		this.cachedRaw = undefined;
 		this.lastFrameHash = 0;
+		if (this.rawFileFd !== null) {
+			try {
+				fs.closeSync(this.rawFileFd);
+			} catch {
+				// ignore
+			}
+			this.rawFileFd = null;
+		}
 		try {
 			fs.unlinkSync(this.rawFilePath);
 		} catch {
@@ -74,7 +85,8 @@ export class NesImageRenderer {
 		const rows = Math.max(1, Math.min(maxRows, Math.floor((FRAME_HEIGHT * scale) / cell.heightPx)));
 
 		this.fillRawBuffer(frameBuffer);
-		fs.writeFileSync(this.rawFilePath, this.rawBuffer);
+		const fd = this.ensureRawFile();
+		fs.writeSync(fd, this.rawBuffer, 0, this.rawBuffer.length, 0);
 
 		let cached = this.cachedRaw;
 		if (!cached || cached.columns !== columns || cached.rows !== rows) {
@@ -173,6 +185,19 @@ export class NesImageRenderer {
 			offset += 3;
 		}
 	}
+
+	private ensureRawFile(): number {
+		if (this.rawFileFd !== null) {
+			return this.rawFileFd;
+		}
+		try {
+			fs.mkdirSync(this.rawFileDir, { recursive: true });
+		} catch {
+			// ignore
+		}
+		this.rawFileFd = fs.openSync(this.rawFilePath, "w+");
+		return this.rawFileFd;
+	}
 }
 
 function encodeKittyRawFile(
@@ -202,6 +227,24 @@ function encodeKittyRawFile(
 	if (options.zIndex !== undefined) params.push(`z=${options.zIndex}`);
 
 	return `\x1b_G${params.join(",")};${base64Path}\x1b\\`;
+}
+
+function resolveRawDir(): string {
+	const candidates = [process.env.TMPDIR, SHM_DIR, FALLBACK_TMP_DIR, os.tmpdir()].filter(
+		(value): value is string => Boolean(value && value.length > 0),
+	);
+	for (const candidate of candidates) {
+		try {
+			if (!fs.existsSync(candidate)) {
+				continue;
+			}
+			fs.accessSync(candidate, fs.constants.W_OK);
+			return candidate;
+		} catch {
+			// keep trying
+		}
+	}
+	return os.tmpdir();
 }
 
 function hashFrame(frameBuffer: ReadonlyArray<number>, width: number, height: number): number {

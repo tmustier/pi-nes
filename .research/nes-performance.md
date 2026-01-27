@@ -38,6 +38,9 @@ Improve emulation speed and reduce stutter while keeping high‑resolution rende
 - Send only a **small escape sequence** with base64 file path.
 - Inject a frame marker so TUI re-renders the image line.
 
+### ⚠️ Current Result
+- Still seeing stalls. Likely due to **sync file writes each frame** and JS thread contention.
+
 ### Next (if still needed)
 2) **Shared memory transport (`t=s`)** to avoid file I/O.
 3) **Expose framebuffer pointer from WASM** to avoid JS copying.
