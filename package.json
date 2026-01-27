@@ -1,0 +1,26 @@
+{
+  "name": "pi-nes",
+  "version": "0.1.0",
+  "description": "NES emulator extension for pi",
+  "keywords": ["pi-package", "pi", "nes", "emulator"],
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tmustier/pi-nes.git"
+  },
+  "files": [
+    "extensions",
+    "README.md",
+    "spec.md"
+  ],
+  "dependencies": {
+    "jsnes": "^1.2.1"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*"
+  },
+  "pi": {
+    "extensions": ["./extensions/nes"]
+  }
+}

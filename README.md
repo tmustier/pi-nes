@@ -5,14 +5,21 @@ NES emulator extension for pi (targeting Kitty).
 ## Setup
 
 ```bash
-cd /Users/thomasmustier/projects/pi-nes/extensions/nes
+cd /Users/thomasmustier/projects/pi-nes
 npm install
+```
+
+## Install as a pi package
+
+```bash
+pi install git:github.com/tmustier/pi-nes
 ```
 
 ## Usage
 
 ```bash
-pi --extension /Users/thomasmustier/projects/pi-nes/extensions/nes
+# Local path
+pi --extension /Users/thomasmustier/projects/pi-nes
 ```
 
 Commands:

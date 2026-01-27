@@ -29,6 +29,7 @@ If performance or compatibility is insufficient, switch to a WASM core (e.g., Ne
 ## File Layout (proposed)
 ```
 pi-nes/
+  package.json        # pi package manifest (pi-package)
   extensions/
     nes/
       index.ts          # registers /nes command
@@ -41,7 +42,6 @@ pi-nes/
       saves.ts          # SRAM load/save
       types/
         jsnes.d.ts      # jsnes type declarations
-      package.json      # core dependency
 ```
 
 ## Rendering
