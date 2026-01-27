@@ -12,3 +12,6 @@ libc = "0.2"
 napi = { version = "2", features = ["napi8"] }
 napi-derive = "2"
 once_cell = "1.19"
+
+[build-dependencies]
+napi-build = "2"

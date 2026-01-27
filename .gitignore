@@ -2,5 +2,8 @@ node_modules/
 .DS_Store
 *.log
 *.tgz
+*.node
+Cargo.lock
 package-lock.json
 .ralph/
+target/

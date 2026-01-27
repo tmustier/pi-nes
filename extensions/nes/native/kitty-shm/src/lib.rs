@@ -16,6 +16,9 @@ struct ShmMapping {
 	name: String,
 }
 
+unsafe impl Send for ShmMapping {}
+unsafe impl Sync for ShmMapping {}
+
 static SHM_MAP: Lazy<Mutex<HashMap<String, ShmMapping>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -32,7 +35,7 @@ pub fn native_version() -> String {
 }
 
 #[napi]
-pub fn create_shared_memory(env: Env, size: u32) -> Result<SharedMemoryHandle> {
+pub fn create_shared_memory(size: u32) -> Result<SharedMemoryHandle> {
 	if size == 0 {
 		return Err(Error::new(Status::InvalidArg, "size must be greater than 0".to_string()));
 	}
@@ -97,22 +100,11 @@ pub fn create_shared_memory(env: Env, size: u32) -> Result<SharedMemoryHandle> {
 			map.insert(name.clone(), mapping);
 		}
 
-		let buffer = match unsafe {
-			Uint8Array::from_external(
-				&env,
-				ptr,
-				size_usize,
-				name.clone(),
-				|_, name| {
-					close_shared_memory_internal(&name);
-				},
-			)
-		} {
-			Ok(buffer) => buffer,
-			Err(err) => {
-				close_shared_memory_internal(&name);
-				return Err(err);
-			}
+		let name_for_finalize = name.clone();
+		let buffer = unsafe {
+			Uint8Array::with_external_data(ptr, size_usize, move |_data, _len| {
+				close_shared_memory_internal(&name_for_finalize);
+			})
 		};
 
 		return Ok(SharedMemoryHandle { name, size, buffer });

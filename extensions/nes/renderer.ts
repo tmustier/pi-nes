@@ -24,8 +24,8 @@ interface SharedMemoryHandle {
 interface KittyShmModule {
 	isAvailable: boolean;
 	loadError: unknown | null;
-	create_shared_memory: (size: number) => SharedMemoryHandle;
-	close_shared_memory: (name: string) => boolean;
+	createSharedMemory: (size: number) => SharedMemoryHandle;
+	closeSharedMemory: (name: string) => boolean;
 }
 
 let kittyShmModule: KittyShmModule | null | undefined;
@@ -49,14 +49,12 @@ export class NesImageRenderer {
 	private readonly imageId = allocateImageId();
 	private cachedImage?: { base64: string; width: number; height: number };
 	private cachedRaw?: { sequence: string; columns: number; rows: number };
-	private cachedShared?: { sequence: string; columns: number; rows: number };
 	private readonly rawBuffer = Buffer.alloc(RAW_FRAME_BYTES);
 	private readonly rawFileDir = resolveRawDir();
 	private readonly rawFilePath = path.join(this.rawFileDir, `pi-nes-tty-graphics-${this.imageId}.raw`);
 	private readonly rawFilePathBase64 = Buffer.from(this.rawFilePath).toString("base64");
 	private rawFileFd: number | null = null;
-	private sharedMemory?: SharedMemoryHandle;
-	private sharedMemoryBase64?: string;
+	private readonly sharedMemoryQueue: SharedMemoryHandle[] = [];
 	private sharedMemoryDisabled = false;
 	private sharedMemoryModule: KittyShmModule | null = null;
 	private lastFrameHash = 0;
@@ -87,17 +85,17 @@ export class NesImageRenderer {
 		}
 		this.cachedImage = undefined;
 		this.cachedRaw = undefined;
-		this.cachedShared = undefined;
 		this.lastFrameHash = 0;
-		if (this.sharedMemory && this.sharedMemoryModule) {
-			try {
-				this.sharedMemoryModule.close_shared_memory(this.sharedMemory.name);
-			} catch {
-				// ignore
+		if (this.sharedMemoryQueue.length > 0 && this.sharedMemoryModule) {
+			for (const handle of this.sharedMemoryQueue) {
+				try {
+					this.sharedMemoryModule.closeSharedMemory(handle.name);
+				} catch {
+					// ignore
+				}
 			}
+			this.sharedMemoryQueue.length = 0;
 		}
-		this.sharedMemory = undefined;
-		this.sharedMemoryBase64 = undefined;
 		this.sharedMemoryModule = null;
 		this.sharedMemoryDisabled = false;
 		if (this.rawFileFd !== null) {
@@ -122,7 +120,11 @@ export class NesImageRenderer {
 		footerRows: number,
 		pixelScale: number,
 	): string[] | null {
-		const shared = this.ensureSharedMemory();
+		const module = this.getSharedMemoryModule();
+		if (!module) {
+			return null;
+		}
+		const shared = this.createSharedMemoryFrame(module);
 		if (!shared) {
 			return null;
 		}
@@ -142,26 +144,16 @@ export class NesImageRenderer {
 		const rows = Math.max(1, Math.min(maxRows, Math.floor((FRAME_HEIGHT * scale) / cell.heightPx)));
 
 		this.fillRawBufferTarget(frameBuffer, shared.buffer);
-
-		let cached = this.cachedShared;
-		if (!cached || cached.columns !== columns || cached.rows !== rows) {
-			const base64Name = this.sharedMemoryBase64 ?? Buffer.from(shared.name).toString("base64");
-			this.sharedMemoryBase64 = base64Name;
-			cached = {
-				sequence: encodeKittyRawSharedMemory(base64Name, {
-					widthPx: FRAME_WIDTH,
-					heightPx: FRAME_HEIGHT,
-					dataSize: RAW_FRAME_BYTES,
-					columns,
-					rows,
-					imageId: this.imageId,
-					zIndex: -1,
-				}),
-				columns,
-				rows,
-			};
-			this.cachedShared = cached;
-		}
+		const base64Name = Buffer.from(shared.name).toString("base64");
+		const sequence = encodeKittyRawSharedMemory(base64Name, {
+			widthPx: FRAME_WIDTH,
+			heightPx: FRAME_HEIGHT,
+			dataSize: RAW_FRAME_BYTES,
+			columns,
+			rows,
+			imageId: this.imageId,
+			zIndex: -1,
+		});
 
 		const lines: string[] = [];
 		for (let i = 0; i < rows - 1; i += 1) {
@@ -170,7 +162,7 @@ export class NesImageRenderer {
 		const moveUp = rows > 1 ? `\x1b[${rows - 1}A` : "";
 		this.rawVersion += 1;
 		const marker = `\x1b_f${this.rawVersion}\x07`;
-		lines.push(`${moveUp}${cached.sequence}${marker}`);
+		lines.push(`${moveUp}${sequence}${marker}`);
 
 		return lines;
 	}
@@ -302,27 +294,40 @@ export class NesImageRenderer {
 		}
 	}
 
-	private ensureSharedMemory(): SharedMemoryHandle | null {
+	private getSharedMemoryModule(): KittyShmModule | null {
 		if (this.sharedMemoryDisabled) {
 			return null;
 		}
-		if (this.sharedMemory) {
-			return this.sharedMemory;
+		if (this.sharedMemoryModule) {
+			return this.sharedMemoryModule;
 		}
 		const module = getKittyShmModule();
 		if (!module) {
 			this.sharedMemoryDisabled = true;
 			return null;
 		}
+		this.sharedMemoryModule = module;
+		return module;
+	}
+
+	private createSharedMemoryFrame(module: KittyShmModule): SharedMemoryHandle | null {
 		try {
-			const handle = module.create_shared_memory(RAW_FRAME_BYTES);
+			const handle = module.createSharedMemory(RAW_FRAME_BYTES);
 			if (!handle?.buffer || handle.buffer.byteLength < RAW_FRAME_BYTES) {
 				this.sharedMemoryDisabled = true;
 				return null;
 			}
-			this.sharedMemory = handle;
-			this.sharedMemoryBase64 = Buffer.from(handle.name).toString("base64");
-			this.sharedMemoryModule = module;
+			this.sharedMemoryQueue.push(handle);
+			if (this.sharedMemoryQueue.length > 2) {
+				const stale = this.sharedMemoryQueue.shift();
+				if (stale) {
+					try {
+						module.closeSharedMemory(stale.name);
+					} catch {
+						// ignore
+					}
+				}
+			}
 			return handle;
 		} catch {
 			this.sharedMemoryDisabled = true;
