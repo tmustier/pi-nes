@@ -1,14 +1,50 @@
 use napi_derive::napi;
 use nes_rust::button::Button;
 use nes_rust::default_audio::DefaultAudio;
-use nes_rust::default_display::DefaultDisplay;
 use nes_rust::default_input::DefaultInput;
+use nes_rust::display::{Display, SCREEN_HEIGHT, SCREEN_WIDTH};
 use nes_rust::rom::Rom;
 use nes_rust::Nes;
 
 #[napi]
 pub fn native_version() -> String {
 	env!("CARGO_PKG_VERSION").to_string()
+}
+
+struct NativeDisplay {
+	pixels: Vec<u8>,
+}
+
+impl NativeDisplay {
+	fn new() -> Self {
+		Self {
+			pixels: vec![0; (SCREEN_WIDTH * SCREEN_HEIGHT * 3) as usize],
+		}
+	}
+}
+
+impl Display for NativeDisplay {
+	fn render_pixel(&mut self, x: u16, y: u16, c: u32) {
+		let x = x as usize;
+		let y = y as usize;
+		if x >= SCREEN_WIDTH as usize || y >= SCREEN_HEIGHT as usize {
+			return;
+		}
+		let base_index = (y * SCREEN_WIDTH as usize + x) * 3;
+		let r = ((c >> 16) & 0xff) as u8;
+		let g = ((c >> 8) & 0xff) as u8;
+		let b = (c & 0xff) as u8;
+		self.pixels[base_index] = r;
+		self.pixels[base_index + 1] = g;
+		self.pixels[base_index + 2] = b;
+	}
+
+	fn vblank(&mut self) {}
+
+	fn copy_to_rgba_pixels(&self, pixels: &mut [u8]) {
+		let len = pixels.len().min(self.pixels.len());
+		pixels[..len].copy_from_slice(&self.pixels[..len]);
+	}
 }
 
 #[napi]
@@ -22,12 +58,12 @@ impl NativeNes {
 	#[napi(constructor)]
 	pub fn new() -> Self {
 		let input = Box::new(DefaultInput::new());
-		let display = Box::new(DefaultDisplay::new());
+		let display = Box::new(NativeDisplay::new());
 		let audio = Box::new(DefaultAudio::new());
 		let nes = Nes::new(input, display, audio);
 		Self {
 			nes,
-			framebuffer: vec![0; 256 * 240 * 3],
+			framebuffer: vec![0; (SCREEN_WIDTH * SCREEN_HEIGHT * 3) as usize],
 		}
 	}
 
