@@ -79,15 +79,19 @@ export class NesOverlayComponent implements Component {
 		if (width <= 0) {
 			return [];
 		}
-		const targetCols = Math.max(1, width);
-		const availableRows = Math.max(1, this.tui.terminal.rows - 2);
+		const availableRows = Math.max(1, Math.floor(this.tui.terminal.rows * 0.8));
 		const maxFrameRows = Math.max(1, availableRows - 1);
 		const idealRows = Math.max(MIN_ROWS, Math.floor(width / ASPECT_RATIO));
 		const targetRows = Math.min(idealRows, maxFrameRows);
-		const lines = renderHalfBlock(this.core.getFrameBuffer(), targetCols, targetRows);
+		const targetCols = Math.max(1, Math.min(width, Math.floor(targetRows * ASPECT_RATIO)));
+		const padLeft = Math.max(0, Math.floor((width - targetCols) / 2));
+		const padPrefix = padLeft > 0 ? " ".repeat(padLeft) : "";
+
+		const rawLines = renderHalfBlock(this.core.getFrameBuffer(), targetCols, targetRows);
+		const lines = rawLines.map((line) => truncateToWidth(`${padPrefix}${line}`, width));
 
 		const footer = " NES | Ctrl+Q=Detach | Q=Quit | WASD/Arrows=Move | Z/X=A/B | Enter=Start | Tab=Select";
-		lines.push(truncateToWidth(`\x1b[2m${footer}\x1b[0m`, width));
+		lines.push(truncateToWidth(`\x1b[2m${padPrefix}${footer}\x1b[0m`, width));
 		return lines;
 	}
 
