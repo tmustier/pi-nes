@@ -9,6 +9,18 @@ cd /Users/thomasmustier/projects/pi-nes
 npm install
 ```
 
+### Optional: build the native shared-memory renderer (Kitty)
+
+Requires a Rust toolchain (cargo + rustc).
+
+```bash
+cd /Users/thomasmustier/projects/pi-nes/extensions/nes/native/kitty-shm
+npm install
+npm run build
+```
+
+If you skip this step, the renderer falls back to the Kitty file transport path.
+
 ## Install as a pi package
 
 ```bash
@@ -66,7 +78,7 @@ Example:
 
 ## Rendering
 
-Default renderer is `image`, which uses Kitty's image protocol for high resolution. On Kitty, we send **raw RGB frames via file transport** (no PNG/base64 encoding) for much better performance; non-Kitty terminals fall back to PNG. Image mode runs **full-screen** (no overlay) because Kitty graphics sequences can't be safely composited inside overlays. Image mode also **throttles rendering to ~30fps** to keep emulation speed stable. Set `renderer: "text"` if you prefer ANSI half-block rendering in an overlay. You can tweak `pixelScale` to 1.5–2.0 for larger images in PNG mode.
+Default renderer is `image`, which uses Kitty's image protocol for high resolution. On Kitty, we **prefer shared-memory transport (`t=s`)** when the native addon is built, falling back to the **file transport (`t=f`)** path if the addon isn’t available; non-Kitty terminals fall back to PNG. Image mode runs **full-screen** (no overlay) because Kitty graphics sequences can't be safely composited inside overlays. Image mode also **throttles rendering to ~30fps** to keep emulation speed stable. Set `renderer: "text"` if you prefer ANSI half-block rendering in an overlay. You can tweak `pixelScale` to 1.5–2.0 for larger images in PNG mode.
 
 ## Audio
 

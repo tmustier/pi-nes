@@ -48,14 +48,16 @@ Improve emulation speed and reduce stutter while keeping high‑resolution rende
 ### ⚠️ Current Result
 - Still seeing stalls. Likely due to **sync file writes each frame** and JS thread contention.
 
-### Plan: Node Native + Shared Memory (next)
-1) **Native addon (Rust + napi-rs)** that creates a POSIX shared memory object (`shm_open` + `ftruncate` + `mmap`).
-2) Expose a **zero‑copy `Uint8Array`** backed by the mapped memory for RGB frames.
-3) Emit a Kitty `t=s` escape sequence referencing the shared memory name (tiny payload).
-4) Optionally move the **NES core into native** (Rust `nes-rust` crate) to avoid JS pixel conversion and allow true 60fps.
-5) Keep JS only as the controller/input bridge; fall back to `t=f`/PNG if shared memory isn’t available.
+### ✅ Node Native + Shared Memory (implemented)
+1) **Native addon (Rust + napi-rs)** creates POSIX shared memory (`shm_open` + `ftruncate` + `mmap`).
+2) Exposes a **zero‑copy `Uint8Array`** backed by mapped memory for RGB frames.
+3) Emits Kitty `t=s` escape sequences referencing the shared memory name.
+4) Falls back to `t=f`/PNG if the addon isn’t available.
+
+**Important:** Kitty unlinks the shared memory object after each transfer, so we create a new shared memory handle per frame and release older ones after a short delay.
 
 ### Future Options
+- Move the **NES core into native** (Rust `nes-rust`) to avoid JS pixel conversion.
 - Worker thread + shared buffers for JS/WASM if native core isn’t used.
 - SRAM persistence support in the WASM/native core.
 
