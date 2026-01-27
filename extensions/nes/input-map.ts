@@ -10,7 +10,7 @@ export const DEFAULT_INPUT_MAPPING: InputMapping = {
 	right: ["right", "d", "D"],
 	a: ["z", "Z"],
 	b: ["x", "X"],
-	start: ["enter"],
+	start: ["enter", "space"],
 	select: ["tab"],
 };
 

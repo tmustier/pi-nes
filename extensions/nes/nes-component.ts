@@ -13,20 +13,22 @@ function renderHalfBlock(
 	frameBuffer: ReadonlyArray<number>,
 	targetCols: number,
 	targetRows: number,
-	scaleFactor: number,
+	scaleX: number,
+	scaleY: number,
 ): string[] {
 	const lines: string[] = [];
-	const blockSize = Math.max(1, scaleFactor);
+	const blockWidth = Math.max(1, scaleX);
+	const blockHeight = Math.max(1, scaleY);
 
 	for (let row = 0; row < targetRows; row += 1) {
 		let line = "";
-		const baseY1 = row * 2 * blockSize;
-		const baseY2 = baseY1 + blockSize;
+		const baseY1 = row * 2 * blockHeight;
+		const baseY2 = baseY1 + blockHeight;
 
 		for (let col = 0; col < targetCols; col += 1) {
-			const baseX = col * blockSize;
-			const [r1, g1, b1] = averageBlock(frameBuffer, baseX, baseY1, blockSize);
-			const [r2, g2, b2] = averageBlock(frameBuffer, baseX, baseY2, blockSize);
+			const baseX = col * blockWidth;
+			const [r1, g1, b1] = averageBlock(frameBuffer, baseX, baseY1, blockWidth, blockHeight);
+			const [r2, g2, b2] = averageBlock(frameBuffer, baseX, baseY2, blockWidth, blockHeight);
 			line += `\x1b[38;2;${r1};${g1};${b1}m\x1b[48;2;${r2};${g2};${b2}m▀`;
 		}
 		line += "\x1b[0m";
@@ -40,10 +42,11 @@ function averageBlock(
 	frameBuffer: ReadonlyArray<number>,
 	startX: number,
 	startY: number,
-	blockSize: number,
+	blockWidth: number,
+	blockHeight: number,
 ): [number, number, number] {
-	const endX = Math.min(startX + blockSize, FRAME_WIDTH);
-	const endY = Math.min(startY + blockSize, FRAME_HEIGHT);
+	const endX = Math.min(startX + blockWidth, FRAME_WIDTH);
+	const endY = Math.min(startY + blockHeight, FRAME_HEIGHT);
 	let r = 0;
 	let g = 0;
 	let b = 0;
@@ -113,19 +116,16 @@ export class NesOverlayComponent implements Component {
 		if (width <= 0) {
 			return [];
 		}
-		const availableRows = Math.max(1, Math.floor(this.tui.terminal.rows * 0.8));
+		const availableRows = Math.max(1, this.tui.terminal.rows - 2);
 		const maxFrameRows = Math.max(1, availableRows - 1);
-		const scaleFactor = Math.max(
-			1,
-			Math.ceil(FRAME_WIDTH / width),
-			Math.ceil(FRAME_HEIGHT / (maxFrameRows * 2)),
-		);
-		const targetRows = Math.max(1, Math.floor(FRAME_HEIGHT / (scaleFactor * 2)));
-		const targetCols = Math.max(1, Math.floor(FRAME_WIDTH / scaleFactor));
+		const scaleX = Math.max(1, Math.ceil(FRAME_WIDTH / width));
+		const scaleY = Math.max(1, Math.ceil(FRAME_HEIGHT / (maxFrameRows * 2)));
+		const targetRows = Math.max(1, Math.floor(FRAME_HEIGHT / (scaleY * 2)));
+		const targetCols = Math.max(1, Math.floor(FRAME_WIDTH / scaleX));
 		const padLeft = Math.max(0, Math.floor((width - targetCols) / 2));
 		const padPrefix = padLeft > 0 ? " ".repeat(padLeft) : "";
 
-		const rawLines = renderHalfBlock(this.core.getFrameBuffer(), targetCols, targetRows, scaleFactor);
+		const rawLines = renderHalfBlock(this.core.getFrameBuffer(), targetCols, targetRows, scaleX, scaleY);
 		const lines = rawLines.map((line) => truncateToWidth(`${padPrefix}${line}`, width));
 
 		const footer = " NES | Ctrl+Q=Detach | Q=Quit | WASD/Arrows=Move | Z/X=A/B | Enter=Start | Tab=Select";

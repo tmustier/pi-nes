@@ -52,7 +52,7 @@ pi-nes/
 ## Input Mapping (default)
 - D‑pad: arrows / WASD
 - A/B: Z / X
-- Start/Select: Enter / Tab
+- Start/Select: Enter/Space / Tab
 - `Ctrl+Q` detaches, `Q` quits
 - Use `isKeyRelease()` for clean key‑up events.
 

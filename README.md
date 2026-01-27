@@ -50,7 +50,7 @@ Example:
     "right": ["right", "d"],
     "a": ["z"],
     "b": ["x"],
-    "start": ["enter"],
+    "start": ["enter", "space"],
     "select": ["tab"]
   }
 }
