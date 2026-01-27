@@ -88,6 +88,19 @@ async function attachSession(
 ): Promise<boolean> {
 	let shouldStop = false;
 	try {
+		const useOverlay = config.renderer !== "image";
+		const overlayOptions = useOverlay
+			? {
+					overlay: true,
+					overlayOptions: {
+						width: "85%",
+						maxHeight: "90%",
+						anchor: "center",
+						margin: { top: 1 },
+					},
+				}
+			: undefined;
+
 		await ctx.ui.custom(
 			(tui, _theme, _keybindings, done) => {
 				session.setRenderHook(() => tui.requestRender());
@@ -104,15 +117,7 @@ async function attachSession(
 					config.pixelScale,
 				);
 			},
-			{
-				overlay: true,
-				overlayOptions: {
-					width: "85%",
-					maxHeight: "90%",
-					anchor: "center",
-					margin: { top: 1 },
-				},
-			},
+			overlayOptions,
 		);
 	} finally {
 		session.setRenderHook(null);

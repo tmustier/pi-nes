@@ -46,8 +46,8 @@ pi-nes/
 
 ## Rendering
 - Use **overlay** via `ctx.ui.custom(..., { overlay: true })`.
-- Default: render 256×240 frames via Kitty **image protocol** for higher resolution.
-- Fallback: half‑block ANSI renderer for terminals without image support.
+- Default: render 256×240 frames via Kitty **image protocol** for higher resolution (full-screen, no overlay).
+- Fallback: half‑block ANSI renderer for terminals without image support (overlay).
 - Target 60fps with a `setInterval` loop; throttle if terminal width is small.
 
 ## Input Mapping (default)
