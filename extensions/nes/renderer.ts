@@ -130,7 +130,7 @@ export class NesImageRenderer {
 			return null;
 		}
 
-		const maxRows = Math.max(1, tui.terminal.rows - footerRows - 1);
+		const maxRows = Math.max(1, tui.terminal.rows - footerRows);
 		const cell = getCellDimensions();
 		const maxWidthByRows = Math.floor(
 			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
@@ -175,7 +175,7 @@ export class NesImageRenderer {
 		footerRows: number,
 		pixelScale: number,
 	): string[] {
-		const maxRows = Math.max(1, tui.terminal.rows - footerRows - 1);
+		const maxRows = Math.max(1, tui.terminal.rows - footerRows);
 		const cell = getCellDimensions();
 		const maxWidthByRows = Math.floor(
 			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
@@ -230,7 +230,7 @@ export class NesImageRenderer {
 		footerRows: number,
 		pixelScale: number,
 	): string[] {
-		const maxRows = Math.max(1, tui.terminal.rows - footerRows - 1);
+		const maxRows = Math.max(1, tui.terminal.rows - footerRows);
 		const cell = getCellDimensions();
 		const maxWidthByRows = Math.floor(
 			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
@@ -380,6 +380,7 @@ function encodeKittyRawFile(
 		"a=T",
 		"f=24",
 		"t=f",
+		"p=1",
 		`q=2`,
 		`s=${options.widthPx}`,
 		`v=${options.heightPx}`,
@@ -409,6 +410,7 @@ function encodeKittyRawSharedMemory(
 		"a=T",
 		"f=24",
 		"t=s",
+		"p=1",
 		`q=2`,
 		`s=${options.widthPx}`,
 		`v=${options.heightPx}`,

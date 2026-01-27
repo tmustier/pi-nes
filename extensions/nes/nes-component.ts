@@ -151,12 +151,13 @@ export class NesOverlayComponent implements Component {
 		const footer = " NES | Ctrl+Q=Detach | Q=Quit | WASD/Arrows=Move | Z/X=A/B | Enter/Space=Start | Tab=Select";
 		const frameBuffer = this.core.getFrameBuffer();
 		const debugLine = this.debug ? this.buildDebugLine() : null;
+		const footerRows = this.debug ? 2 : 1;
 		if (this.rendererMode === "image") {
 			const lines = this.imageRenderer.render(
 				frameBuffer,
 				this.tui,
 				width,
-				1,
+				footerRows,
 				this.pixelScale,
 			);
 			if (debugLine) {
@@ -166,8 +167,7 @@ export class NesOverlayComponent implements Component {
 			return lines;
 		}
 
-		const availableRows = Math.max(1, this.tui.terminal.rows - 2);
-		const maxFrameRows = Math.max(1, availableRows - 1);
+		const maxFrameRows = Math.max(1, this.tui.terminal.rows - footerRows);
 		const scaleX = Math.max(1, Math.ceil(FRAME_WIDTH / width));
 		const scaleY = Math.max(1, Math.ceil(FRAME_HEIGHT / (maxFrameRows * 2)));
 		const targetRows = Math.max(1, Math.floor(FRAME_HEIGHT / (scaleY * 2)));
