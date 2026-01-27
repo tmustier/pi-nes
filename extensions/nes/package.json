@@ -1,0 +1,12 @@
+{
+  "name": "pi-nes-extension",
+  "private": true,
+  "type": "module",
+  "pi": {
+    "extensions": ["./index.ts"]
+  },
+  "dependencies": {
+    "jsnes": "^1.2.1",
+    "speaker": "^0.5.5"
+  }
+}
