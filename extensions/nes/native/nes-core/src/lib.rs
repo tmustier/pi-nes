@@ -1,0 +1,88 @@
+use napi_derive::napi;
+use nes_rust::button::Button;
+use nes_rust::default_audio::DefaultAudio;
+use nes_rust::default_display::DefaultDisplay;
+use nes_rust::default_input::DefaultInput;
+use nes_rust::rom::Rom;
+use nes_rust::Nes;
+
+#[napi]
+pub fn native_version() -> String {
+	env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[napi]
+pub struct NativeNes {
+	nes: Nes,
+	framebuffer: Vec<u8>,
+}
+
+#[napi]
+impl NativeNes {
+	#[napi(constructor)]
+	pub fn new() -> Self {
+		let input = Box::new(DefaultInput::new());
+		let display = Box::new(DefaultDisplay::new());
+		let audio = Box::new(DefaultAudio::new());
+		let nes = Nes::new(input, display, audio);
+		Self {
+			nes,
+			framebuffer: vec![0; 256 * 240 * 3],
+		}
+	}
+
+	#[napi]
+	pub fn set_rom(&mut self, data: Vec<u8>) {
+		let rom = Rom::new(data);
+		self.nes.set_rom(rom);
+	}
+
+	#[napi]
+	pub fn bootup(&mut self) {
+		self.nes.bootup();
+	}
+
+	#[napi]
+	pub fn step_frame(&mut self) {
+		self.nes.step_frame();
+	}
+
+	#[napi]
+	pub fn reset(&mut self) {
+		self.nes.reset();
+	}
+
+	#[napi]
+	pub fn press_button(&mut self, button: u8) {
+		if let Some(mapped) = map_button(button) {
+			self.nes.press_button(mapped);
+		}
+	}
+
+	#[napi]
+	pub fn release_button(&mut self, button: u8) {
+		if let Some(mapped) = map_button(button) {
+			self.nes.release_button(mapped);
+		}
+	}
+
+	#[napi]
+	pub fn get_framebuffer(&mut self) -> Vec<u8> {
+		self.nes.copy_pixels(&mut self.framebuffer);
+		self.framebuffer.clone()
+	}
+}
+
+fn map_button(button: u8) -> Option<Button> {
+	match button {
+		0 => Some(Button::Select),
+		1 => Some(Button::Start),
+		2 => Some(Button::Joypad1A),
+		3 => Some(Button::Joypad1B),
+		4 => Some(Button::Joypad1Up),
+		5 => Some(Button::Joypad1Down),
+		6 => Some(Button::Joypad1Left),
+		7 => Some(Button::Joypad1Right),
+		_ => None,
+	}
+}

@@ -1,0 +1,14 @@
+{
+  "name": "pi-nes-core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "build": "napi build --release --dts native.d.ts",
+    "build:debug": "napi build --dts native.d.ts"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.2"
+  }
+}

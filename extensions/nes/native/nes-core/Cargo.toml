@@ -1,0 +1,17 @@
+[package]
+name = "pi_nes_core"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+libc = "0.2"
+nes_rust = { git = "https://github.com/takahirox/nes-rust.git", tag = "v0.1.2" }
+napi = { version = "2", features = ["napi8"] }
+napi-derive = "2"
+
+[build-dependencies]
+napi-build = "2"
