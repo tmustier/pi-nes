@@ -207,11 +207,13 @@ export class NesOverlayComponent implements Component {
 		if (!stats) {
 			return null;
 		}
-		const memMb = process.memoryUsage().heapUsed / 1024 / 1024;
 		const label = this.debugLabel ? ` core=${this.debugLabel}` : "";
+		const mem = stats.memory;
 		const line = `DEBUG${label} fps=${stats.tickFps.toFixed(1)} render=${stats.renderFps.toFixed(1)} `
 			+ `frames/tick=${stats.avgFramesPerTick.toFixed(2)} dropped=${stats.droppedFrames} `
-			+ `catch=${stats.lastCatchUpFrames}/${stats.maxCatchUpFrames} mem=${memMb.toFixed(1)}MB`;
+			+ `catch=${stats.lastCatchUpFrames}/${stats.maxCatchUpFrames} `
+			+ `eld=${stats.eventLoopDelayMs.toFixed(2)}ms `
+			+ `mem=${mem.heapUsedMb.toFixed(1)}/${mem.rssMb.toFixed(1)}MB ext=${mem.externalMb.toFixed(1)}MB ab=${mem.arrayBuffersMb.toFixed(1)}MB`;
 		return `\x1b[33m${line}\x1b[0m`;
 	}
 

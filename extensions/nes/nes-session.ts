@@ -1,4 +1,4 @@
-import { performance } from "node:perf_hooks";
+import { monitorEventLoopDelay, performance } from "node:perf_hooks";
 import type { NesCore } from "./nes-core.js";
 import { saveSram } from "./saves.js";
 
@@ -26,6 +26,13 @@ export interface NesSessionStats {
 	maxCatchUpFrames: number;
 	frameIntervalMs: number;
 	renderIntervalMs: number;
+	eventLoopDelayMs: number;
+	memory: {
+		heapUsedMb: number;
+		externalMb: number;
+		rssMb: number;
+		arrayBuffersMb: number;
+	};
 }
 
 export class NesSession {
@@ -53,6 +60,7 @@ export class NesSession {
 		ticks: 0,
 		dropped: 0,
 	};
+	private readonly loopDelay = monitorEventLoopDelay({ resolution: 10 });
 
 	constructor(options: NesSessionOptions) {
 		this.core = options.core;
@@ -71,6 +79,13 @@ export class NesSession {
 			maxCatchUpFrames: this.maxCatchUpFrames,
 			frameIntervalMs: this.frameIntervalMs,
 			renderIntervalMs: this.renderIntervalMs,
+			eventLoopDelayMs: 0,
+			memory: {
+				heapUsedMb: 0,
+				externalMb: 0,
+				rssMb: 0,
+				arrayBuffersMb: 0,
+			},
 		};
 	}
 
@@ -86,6 +101,8 @@ export class NesSession {
 		this.statsWindow.renders = 0;
 		this.statsWindow.ticks = 0;
 		this.statsWindow.dropped = 0;
+		this.loopDelay.reset();
+		this.loopDelay.enable();
 		this.tickTimer = setInterval(() => {
 			this.tick();
 		}, this.frameIntervalMs);
@@ -117,6 +134,7 @@ export class NesSession {
 			clearInterval(this.tickTimer);
 			this.tickTimer = null;
 		}
+		this.loopDelay.disable();
 		if (this.saveTimer) {
 			clearInterval(this.saveTimer);
 			this.saveTimer = null;
@@ -167,6 +185,7 @@ export class NesSession {
 			const windowDuration = now - this.statsWindow.startTime;
 			if (windowDuration >= 1000) {
 				const seconds = windowDuration / 1000;
+				const mem = process.memoryUsage();
 				this.stats = {
 					tickFps: this.statsWindow.frames / seconds,
 					renderFps: this.statsWindow.renders / seconds,
@@ -176,7 +195,15 @@ export class NesSession {
 					maxCatchUpFrames: this.maxCatchUpFrames,
 					frameIntervalMs: this.frameIntervalMs,
 					renderIntervalMs: this.renderIntervalMs,
+					eventLoopDelayMs: this.loopDelay.mean / 1e6,
+					memory: {
+						heapUsedMb: mem.heapUsed / 1024 / 1024,
+						externalMb: mem.external / 1024 / 1024,
+						rssMb: mem.rss / 1024 / 1024,
+						arrayBuffersMb: mem.arrayBuffers / 1024 / 1024,
+					},
 				};
+				this.loopDelay.reset();
 				this.statsWindow.startTime = now;
 				this.statsWindow.frames = 0;
 				this.statsWindow.renders = 0;
