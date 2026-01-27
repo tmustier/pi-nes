@@ -16,9 +16,15 @@ pi --extension /Users/thomasmustier/projects/pi-nes/extensions/nes
 ```
 
 Commands:
-- `/nes` — pick a ROM from the configured directory
+- `/nes` — pick a ROM from the configured directory or reattach to a running session
 - `/nes <path>` — load a specific ROM
 - `/nes-config` — edit configuration
+
+Controls:
+- `Ctrl+Q` — detach overlay (keeps the session running)
+- `Q` — quit emulator
+
+Note: if a session is running, `/nes` reattaches. Use `/nes <path>` to start a new ROM.
 
 ## Configuration
 

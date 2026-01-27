@@ -20,9 +20,10 @@ Selected core: **jsnes@1.2.1** (pure JS) with mapper support for 0/1/2/3/4/5/7/1
 If performance or compatibility is insufficient, switch to a WASM core (e.g., Nestopia/Mesen build) behind the same wrapper interface.
 
 ## User Flow
-- `/nes` opens a ROM picker (from configured ROM directory)
-- `/nes <path>` loads a ROM directly
-- `Q` exits emulator, persists SRAM
+- `/nes` opens a ROM picker (from configured ROM directory) or reattaches to a running session
+- `/nes <path>` loads a ROM directly (reuses the running session if same ROM)
+- `Ctrl+Q` detaches overlay (session keeps running)
+- `Q` quits emulator and persists SRAM
 - Optional: `/nes-config` to set ROM directory and keybindings
 
 ## File Layout (proposed)
@@ -33,6 +34,7 @@ pi-nes/
       index.ts          # registers /nes command
       nes-component.ts  # TUI component + render loop
       nes-core.ts       # wrapper around emulator core
+      nes-session.ts    # runtime session (tick + save loop)
       config.ts         # config loading (rom/save dirs, audio)
       input-map.ts      # key mapping + config
       roms.ts           # ROM discovery + picker helpers
@@ -51,6 +53,7 @@ pi-nes/
 - D‑pad: arrows / WASD
 - A/B: Z / X
 - Start/Select: Enter / Tab
+- `Ctrl+Q` detaches, `Q` quits
 - Use `isKeyRelease()` for clean key‑up events.
 
 ## Saves

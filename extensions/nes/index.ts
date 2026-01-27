@@ -4,10 +4,11 @@ import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-cod
 import { NesOverlayComponent } from "./nes-component.js";
 import { createNesCore } from "./nes-core.js";
 import { formatConfig, getConfigPath, loadConfig, normalizeConfig, saveConfig } from "./config.js";
+import { NesSession } from "./nes-session.js";
 import { listRoms } from "./roms.js";
-import { loadSram, saveSram } from "./saves.js";
+import { loadSram } from "./saves.js";
 
-const SAVE_INTERVAL_MS = 5000;
+let activeSession: NesSession | null = null;
 
 async function selectRom(
 	args: string | undefined,
@@ -43,9 +44,90 @@ async function selectRom(
 	}
 }
 
+async function createSession(romPath: string, ctx: ExtensionCommandContext, config: Awaited<ReturnType<typeof loadConfig>>): Promise<NesSession | null> {
+	let romData: Uint8Array;
+	try {
+		romData = new Uint8Array(await fs.readFile(romPath));
+	} catch {
+		ctx.ui.notify(`Failed to read ROM: ${romPath}`, "error");
+		return null;
+	}
+
+	const core = createNesCore({ enableAudio: config.enableAudio });
+	try {
+		core.loadRom(romData);
+	} catch {
+		core.dispose();
+		ctx.ui.notify(`Failed to load ROM: ${romPath}`, "error");
+		return null;
+	}
+
+	const audioWarning = core.getAudioWarning();
+	if (audioWarning) {
+		ctx.ui.notify(audioWarning, "warning");
+	}
+
+	const savedSram = await loadSram(config.saveDir, romPath);
+	if (savedSram) {
+		core.setSram(savedSram);
+	}
+
+	const session = new NesSession({
+		core,
+		romPath,
+		saveDir: config.saveDir,
+	});
+	session.start();
+	return session;
+}
+
+async function attachSession(
+	session: NesSession,
+	ctx: ExtensionCommandContext,
+	config: Awaited<ReturnType<typeof loadConfig>>,
+): Promise<boolean> {
+	let shouldStop = false;
+	try {
+		await ctx.ui.custom(
+			(tui, _theme, _keybindings, done) => {
+				session.setRenderHook(() => tui.requestRender());
+				return new NesOverlayComponent(
+					tui,
+					session.core,
+					() => done(undefined),
+					() => {
+						shouldStop = true;
+						done(undefined);
+					},
+					config.keybindings,
+				);
+			},
+			{
+				overlay: true,
+				overlayOptions: {
+					width: "85%",
+					maxHeight: "90%",
+					anchor: "center",
+					margin: { top: 1 },
+				},
+			},
+		);
+	} finally {
+		session.setRenderHook(null);
+	}
+	return shouldStop;
+}
+
 export default function (pi: ExtensionAPI) {
+	pi.on("session_shutdown", async () => {
+		if (activeSession) {
+			await activeSession.stop();
+			activeSession = null;
+		}
+	});
+
 	pi.registerCommand("nes", {
-		description: "Play NES games in an overlay",
+		description: "Play NES games in an overlay (Ctrl+Q to detach)",
 		handler: async (args, ctx) => {
 			if (!ctx.hasUI) {
 				ctx.ui.notify("NES requires interactive mode", "error");
@@ -54,85 +136,39 @@ export default function (pi: ExtensionAPI) {
 
 			const config = await loadConfig();
 			const configPath = getConfigPath();
+
+			if (!args?.trim() && activeSession) {
+				const shouldStop = await attachSession(activeSession, ctx, config);
+				if (shouldStop) {
+					await activeSession.stop();
+					activeSession = null;
+				}
+				return;
+			}
+
 			const romPath = await selectRom(args, config.romDir, configPath, ctx.cwd, ctx);
 			if (!romPath) {
 				return;
 			}
+			const resolvedRomPath = path.resolve(romPath);
 
-			let romData: Uint8Array;
-			try {
-				romData = new Uint8Array(await fs.readFile(romPath));
-			} catch {
-				ctx.ui.notify(`Failed to read ROM: ${romPath}`, "error");
-				return;
+			if (activeSession && activeSession.romPath !== resolvedRomPath) {
+				await activeSession.stop();
+				activeSession = null;
 			}
 
-			const core = createNesCore({ enableAudio: config.enableAudio });
-			try {
-				core.loadRom(romData);
-			} catch {
-				core.dispose();
-				ctx.ui.notify(`Failed to load ROM: ${romPath}`, "error");
-				return;
-			}
-
-			const audioWarning = core.getAudioWarning();
-			if (audioWarning) {
-				ctx.ui.notify(audioWarning, "warning");
-			}
-
-			const savedSram = await loadSram(config.saveDir, romPath);
-			if (savedSram) {
-				core.setSram(savedSram);
-			}
-
-			let saveInFlight = false;
-			const saveIfNeeded = async (force: boolean): Promise<void> => {
-				if (saveInFlight) {
+			if (!activeSession) {
+				const session = await createSession(resolvedRomPath, ctx, config);
+				if (!session) {
 					return;
 				}
-				if (!force && !core.isSramDirty()) {
-					return;
-				}
-				const sram = core.getSram();
-				if (!sram) {
-					return;
-				}
-				saveInFlight = true;
-				try {
-					await saveSram(config.saveDir, romPath, sram);
-					core.markSramSaved();
-				} finally {
-					saveInFlight = false;
-				}
-			};
+				activeSession = session;
+			}
 
-			const saveTimer = setInterval(() => {
-				void saveIfNeeded(false);
-			}, SAVE_INTERVAL_MS);
-
-			let component: NesOverlayComponent | null = null;
-			try {
-				await ctx.ui.custom(
-					(tui, _theme, _keybindings, done) => {
-						component = new NesOverlayComponent(tui, core, () => done(undefined), config.keybindings);
-						return component;
-					},
-					{
-						overlay: true,
-						overlayOptions: {
-							width: "85%",
-							maxHeight: "90%",
-							anchor: "center",
-							margin: { top: 1 },
-						},
-					},
-				);
-			} finally {
-				component?.dispose();
-				clearInterval(saveTimer);
-				await saveIfNeeded(true);
-				core.dispose();
+			const shouldStop = await attachSession(activeSession, ctx, config);
+			if (shouldStop) {
+				await activeSession.stop();
+				activeSession = null;
 			}
 		},
 	});

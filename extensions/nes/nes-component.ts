@@ -8,7 +8,6 @@ const FRAME_WIDTH = 256;
 const FRAME_HEIGHT = 240;
 const ASPECT_RATIO = FRAME_WIDTH / (FRAME_HEIGHT / 2);
 const MIN_ROWS = 10;
-const FRAME_INTERVAL_MS = 1000 / 60;
 
 function renderHalfBlock(frameBuffer: ReadonlyArray<number>, targetCols: number, targetRows: number): string[] {
 	const lines: string[] = [];
@@ -43,24 +42,26 @@ function renderHalfBlock(frameBuffer: ReadonlyArray<number>, targetCols: number,
 
 export class NesOverlayComponent implements Component {
 	wantsKeyRelease = true;
-	private interval: ReturnType<typeof setInterval> | null = null;
 	private readonly inputMapping: InputMapping;
 
 	constructor(
 		private readonly tui: TUI,
 		private readonly core: NesCore,
-		private readonly onExit: () => void,
+		private readonly onDetach: () => void,
+		private readonly onQuit: () => void,
 		inputMapping: InputMapping = DEFAULT_INPUT_MAPPING,
 	) {
 		this.inputMapping = inputMapping;
-		this.startLoop();
 	}
 
 	handleInput(data: string): void {
 		const released = isKeyRelease(data);
-		if (!released && (data === "q" || data === "Q" || matchesKey(data, "escape"))) {
-			this.dispose();
-			this.onExit();
+		if (!released && matchesKey(data, "ctrl+q")) {
+			this.onDetach();
+			return;
+		}
+		if (!released && (data === "q" || data === "Q")) {
+			this.onQuit();
 			return;
 		}
 
@@ -79,32 +80,18 @@ export class NesOverlayComponent implements Component {
 			return [];
 		}
 		const targetCols = Math.max(1, width);
-		const targetRows = Math.max(MIN_ROWS, Math.floor(width / ASPECT_RATIO));
+		const availableRows = Math.max(1, this.tui.terminal.rows - 2);
+		const maxFrameRows = Math.max(1, availableRows - 1);
+		const idealRows = Math.max(MIN_ROWS, Math.floor(width / ASPECT_RATIO));
+		const targetRows = Math.min(idealRows, maxFrameRows);
 		const lines = renderHalfBlock(this.core.getFrameBuffer(), targetCols, targetRows);
 
-		const footer = " NES | Q=Quit | WASD/Arrows=Move | Z/X=A/B | Enter=Start | Tab=Select";
+		const footer = " NES | Ctrl+Q=Detach | Q=Quit | WASD/Arrows=Move | Z/X=A/B | Enter=Start | Tab=Select";
 		lines.push(truncateToWidth(`\x1b[2m${footer}\x1b[0m`, width));
 		return lines;
 	}
 
 	invalidate(): void {}
 
-	dispose(): void {
-		if (this.interval) {
-			clearInterval(this.interval);
-			this.interval = null;
-		}
-	}
-
-	private startLoop(): void {
-		this.interval = setInterval(() => {
-			try {
-				this.core.tick();
-				this.tui.requestRender();
-			} catch {
-				this.dispose();
-				this.onExit();
-			}
-		}, FRAME_INTERVAL_MS);
-	}
+	dispose(): void {}
 }
