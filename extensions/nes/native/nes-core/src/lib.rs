@@ -32,9 +32,9 @@ impl Display for NativeDisplay {
 			return;
 		}
 		let base_index = (y * SCREEN_WIDTH as usize + x) * 3;
-		let r = ((c >> 16) & 0xff) as u8;
+		let r = (c & 0xff) as u8;
 		let g = ((c >> 8) & 0xff) as u8;
-		let b = (c & 0xff) as u8;
+		let b = ((c >> 16) & 0xff) as u8;
 		self.pixels[base_index] = r;
 		self.pixels[base_index + 1] = g;
 		self.pixels[base_index + 2] = b;
