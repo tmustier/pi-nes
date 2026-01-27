@@ -22,7 +22,11 @@ export class NesImageRenderer {
 	): string[] {
 		const maxRows = Math.max(1, tui.terminal.rows - footerRows - 1);
 		const cell = getCellDimensions();
-		const maxWidthPx = Math.max(1, widthCells * cell.widthPx);
+		const maxWidthByRows = Math.floor(
+			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
+		);
+		const maxWidthCells = Math.max(1, Math.min(widthCells, maxWidthByRows));
+		const maxWidthPx = Math.max(1, maxWidthCells * cell.widthPx);
 		const maxHeightPx = Math.max(1, maxRows * cell.heightPx);
 		const scale = Math.min(
 			maxWidthPx / FRAME_WIDTH,
@@ -59,7 +63,7 @@ export class NesImageRenderer {
 			this.cachedImage.base64,
 			"image/png",
 			{ fallbackColor: (str) => str },
-			{ imageId: this.imageId },
+			{ imageId: this.imageId, maxWidthCells },
 			{ widthPx: this.cachedImage.width, heightPx: this.cachedImage.height },
 		);
 
