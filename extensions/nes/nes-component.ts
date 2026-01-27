@@ -12,12 +12,12 @@ const MIN_ROWS = 10;
 function renderHalfBlock(frameBuffer: ReadonlyArray<number>, targetCols: number, targetRows: number): string[] {
 	const lines: string[] = [];
 	const scaleX = FRAME_WIDTH / targetCols;
-	const scaleY = FRAME_HEIGHT / (targetRows * 2);
+	const scaleY = FRAME_HEIGHT / targetRows;
 
 	for (let row = 0; row < targetRows; row += 1) {
 		let line = "";
-		const srcY1 = Math.floor(row * 2 * scaleY);
-		const srcY2 = Math.floor((row * 2 + 1) * scaleY);
+		const srcY1 = Math.floor(row * scaleY);
+		const srcY2 = Math.min(srcY1 + 1, FRAME_HEIGHT - 1);
 
 		for (let col = 0; col < targetCols; col += 1) {
 			const srcX = Math.floor(col * scaleX);
