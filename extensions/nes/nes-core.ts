@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { createRequire } from "node:module";
 import jsnes from "jsnes";
 
 const { NES, Controller } = jsnes;
@@ -26,6 +27,7 @@ export interface NesCore {
 
 export interface CreateNesCoreOptions {
 	enableAudio?: boolean;
+	core?: "jsnes" | "wasm";
 }
 
 const BUTTON_MAP: Record<NesButton, number> = {
@@ -38,6 +40,17 @@ const BUTTON_MAP: Record<NesButton, number> = {
 	start: Controller.BUTTON_START,
 	select: Controller.BUTTON_SELECT,
 };
+
+type NesRustWasm = typeof import("nes_rust_wasm");
+const require = createRequire(import.meta.url);
+let wasmModule: NesRustWasm | null = null;
+
+function getWasmModule(): NesRustWasm {
+	if (!wasmModule) {
+		wasmModule = require("nes_rust_wasm") as NesRustWasm;
+	}
+	return wasmModule;
+}
 
 class JsnesCore implements NesCore {
 	private readonly nes: InstanceType<typeof NES>;
@@ -147,6 +160,95 @@ class JsnesCore implements NesCore {
 	}
 }
 
+class WasmNesCore implements NesCore {
+	private readonly nes: InstanceType<NesRustWasm["WasmNes"]>;
+	private readonly buttonMap: Record<NesButton, number>;
+	private readonly pixelBuffer = new Uint8Array(FRAMEBUFFER_SIZE * 4);
+	private readonly frameBuffer = new Uint32Array(FRAMEBUFFER_SIZE);
+	private readonly audioWarning: string | null;
+
+	constructor(enableAudio: boolean) {
+		this.audioWarning = enableAudio
+			? "Audio output is disabled (no safe dependency available)."
+			: null;
+		const wasm = getWasmModule();
+		this.nes = wasm.WasmNes.new();
+		this.buttonMap = {
+			up: wasm.Button.Joypad1Up,
+			down: wasm.Button.Joypad1Down,
+			left: wasm.Button.Joypad1Left,
+			right: wasm.Button.Joypad1Right,
+			a: wasm.Button.Joypad1A,
+			b: wasm.Button.Joypad1B,
+			start: wasm.Button.Start,
+			select: wasm.Button.Select,
+		};
+	}
+
+	loadRom(rom: Uint8Array): void {
+		this.nes.set_rom(rom);
+		this.nes.bootup();
+	}
+
+	tick(): void {
+		this.nes.step_frame();
+		this.nes.update_pixels(this.pixelBuffer);
+		this.refreshFrameBuffer();
+	}
+
+	getFrameBuffer(): ReadonlyArray<number> {
+		return this.frameBuffer;
+	}
+
+	setButton(button: NesButton, pressed: boolean): void {
+		const mapped = this.buttonMap[button];
+		if (pressed) {
+			this.nes.press_button(mapped);
+		} else {
+			this.nes.release_button(mapped);
+		}
+	}
+
+	getSram(): Uint8Array | null {
+		return null;
+	}
+
+	setSram(_sram: Uint8Array): void {}
+
+	isSramDirty(): boolean {
+		return false;
+	}
+
+	markSramSaved(): void {}
+
+	getAudioWarning(): string | null {
+		return this.audioWarning;
+	}
+
+	reset(): void {
+		this.nes.reset();
+	}
+
+	dispose(): void {
+		this.nes.free();
+	}
+
+	private refreshFrameBuffer(): void {
+		let offset = 0;
+		for (let i = 0; i < this.frameBuffer.length; i += 1) {
+			const r = this.pixelBuffer[offset];
+			const g = this.pixelBuffer[offset + 1];
+			const b = this.pixelBuffer[offset + 2];
+			this.frameBuffer[i] = r | (g << 8) | (b << 16);
+			offset += 4;
+		}
+	}
+}
+
 export function createNesCore(options: CreateNesCoreOptions = {}): NesCore {
+	const core = options.core ?? "jsnes";
+	if (core === "wasm") {
+		return new WasmNesCore(options.enableAudio ?? false);
+	}
 	return new JsnesCore(options.enableAudio ?? false);
 }

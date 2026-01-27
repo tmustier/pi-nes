@@ -43,6 +43,7 @@ Example:
   "romDir": "/Users/you/roms/nes",
   "saveDir": "/Users/you/.pi/nes/saves",
   "enableAudio": false,
+  "core": "jsnes",
   "renderer": "image",
   "pixelScale": 1,
   "keybindings": {
@@ -57,6 +58,11 @@ Example:
   }
 }
 ```
+
+## Core
+
+- `core: "jsnes"` (default) supports battery-backed SRAM saves.
+- `core: "wasm"` is faster but **does not persist battery saves yet**.
 
 ## Rendering
 

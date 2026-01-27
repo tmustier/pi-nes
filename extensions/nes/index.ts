@@ -56,7 +56,7 @@ async function createSession(romPath: string, ctx: ExtensionCommandContext, conf
 		return null;
 	}
 
-	const core = createNesCore({ enableAudio: config.enableAudio });
+	const core = createNesCore({ enableAudio: config.enableAudio, core: config.core });
 	try {
 		core.loadRom(romData);
 	} catch {
@@ -68,6 +68,9 @@ async function createSession(romPath: string, ctx: ExtensionCommandContext, conf
 	const audioWarning = core.getAudioWarning();
 	if (audioWarning) {
 		ctx.ui.notify(audioWarning, "warning");
+	}
+	if (config.core === "wasm") {
+		ctx.ui.notify("WASM core does not support battery saves yet; in-game saves won't persist.", "warning");
 	}
 
 	const savedSram = await loadSram(config.saveDir, romPath);

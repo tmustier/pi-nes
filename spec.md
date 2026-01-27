@@ -14,10 +14,11 @@ Create a pi extension that plays NES games (Zelda, Mario, Metroid, and other ROM
 - Rely on key-up events for smoother input.
 - Optional future: image-mode renderer using Kitty inline images.
 
-## Core Selection (Phase 1)
-Selected core: **jsnes@1.2.1** (pure JS) with mapper support for 0/1/2/3/4/5/7/11/34/38/66/94/140/180.
+## Core Selection
+- Default core: **jsnes@1.2.1** (pure JS) with mapper support for 0/1/2/3/4/5/7/11/34/38/66/94/140/180.
+- Optional core: **nes_rust_wasm** (WASM, faster) with no SRAM persistence exposed yet.
 
-If performance or compatibility is insufficient, switch to a WASM core (e.g., Nestopia/Mesen build) behind the same wrapper interface.
+If performance or compatibility is insufficient, consider a more accurate WASM core (e.g., Nestopia/Mesen build) behind the same wrapper interface.
 
 ## User Flow
 - `/nes` opens a ROM picker (from configured ROM directory) or reattaches to a running session
@@ -62,11 +63,14 @@ pi-nes/
 - Load SRAM on ROM start.
 - Persist on exit and periodically (e.g., every 5–10 seconds).
 
+Note: the `wasm` core does not currently expose SRAM for persistence.
+
 ## Configuration
 - `~/.pi/nes/config.json` with:
   - `romDir`
   - `saveDir`
   - `enableAudio`
+  - `core` ("jsnes" or "wasm")
   - `renderer` ("image" or "text")
   - `pixelScale` (float, e.g. 1.5)
   - `keybindings` (button-to-keys map, e.g. `{ "a": ["z"] }`)
@@ -82,7 +86,7 @@ Note: audio output is currently disabled; setting `enableAudio` will show a warn
 6. Optional: audio + performance tuning
 
 ## Decisions
-- Core: jsnes (JS) with mapper 0/1/2/3/4 coverage.
+- Core: jsnes (default) with mapper 0/1/2/3/4 coverage; optional nes_rust_wasm for performance (no SRAM persistence).
 - Audio: disabled (no safe dependency selected).
 - Default ROM dir: `~/roms/nes` (configurable).
 - Default save dir: `~/.pi/nes/saves` (configurable).
