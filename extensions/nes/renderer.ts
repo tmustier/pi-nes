@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { PNG } from "pngjs";
 import type { TUI } from "@mariozechner/pi-tui";
 import { Image } from "@mariozechner/pi-tui";
@@ -12,17 +13,52 @@ const RAW_FRAME_BYTES = FRAME_WIDTH * FRAME_HEIGHT * 3;
 const FALLBACK_TMP_DIR = "/tmp";
 const SHM_DIR = "/dev/shm";
 
+const require = createRequire(import.meta.url);
+
+interface SharedMemoryHandle {
+	name: string;
+	size: number;
+	buffer: Uint8Array;
+}
+
+interface KittyShmModule {
+	isAvailable: boolean;
+	loadError: unknown | null;
+	create_shared_memory: (size: number) => SharedMemoryHandle;
+	close_shared_memory: (name: string) => boolean;
+}
+
+let kittyShmModule: KittyShmModule | null | undefined;
+
+function getKittyShmModule(): KittyShmModule | null {
+	if (kittyShmModule !== undefined) {
+		return kittyShmModule;
+	}
+	try {
+		const loaded = require("./native/kitty-shm/index.js") as KittyShmModule;
+		kittyShmModule = loaded?.isAvailable ? loaded : null;
+	} catch {
+		kittyShmModule = null;
+	}
+	return kittyShmModule;
+}
+
 export type RendererMode = "image" | "text";
 
 export class NesImageRenderer {
 	private readonly imageId = allocateImageId();
 	private cachedImage?: { base64: string; width: number; height: number };
 	private cachedRaw?: { sequence: string; columns: number; rows: number };
+	private cachedShared?: { sequence: string; columns: number; rows: number };
 	private readonly rawBuffer = Buffer.alloc(RAW_FRAME_BYTES);
 	private readonly rawFileDir = resolveRawDir();
 	private readonly rawFilePath = path.join(this.rawFileDir, `pi-nes-tty-graphics-${this.imageId}.raw`);
 	private readonly rawFilePathBase64 = Buffer.from(this.rawFilePath).toString("base64");
 	private rawFileFd: number | null = null;
+	private sharedMemory?: SharedMemoryHandle;
+	private sharedMemoryBase64?: string;
+	private sharedMemoryDisabled = false;
+	private sharedMemoryModule: KittyShmModule | null = null;
 	private lastFrameHash = 0;
 	private rawVersion = 0;
 
@@ -35,6 +71,10 @@ export class NesImageRenderer {
 	): string[] {
 		const caps = getCapabilities();
 		if (caps.images === "kitty") {
+			const shared = this.renderKittySharedMemory(frameBuffer, tui, widthCells, footerRows, pixelScale);
+			if (shared) {
+				return shared;
+			}
 			return this.renderKittyRaw(frameBuffer, tui, widthCells, footerRows, pixelScale);
 		}
 
@@ -47,7 +87,19 @@ export class NesImageRenderer {
 		}
 		this.cachedImage = undefined;
 		this.cachedRaw = undefined;
+		this.cachedShared = undefined;
 		this.lastFrameHash = 0;
+		if (this.sharedMemory && this.sharedMemoryModule) {
+			try {
+				this.sharedMemoryModule.close_shared_memory(this.sharedMemory.name);
+			} catch {
+				// ignore
+			}
+		}
+		this.sharedMemory = undefined;
+		this.sharedMemoryBase64 = undefined;
+		this.sharedMemoryModule = null;
+		this.sharedMemoryDisabled = false;
 		if (this.rawFileFd !== null) {
 			try {
 				fs.closeSync(this.rawFileFd);
@@ -61,6 +113,66 @@ export class NesImageRenderer {
 		} catch {
 			// ignore
 		}
+	}
+
+	private renderKittySharedMemory(
+		frameBuffer: ReadonlyArray<number>,
+		tui: TUI,
+		widthCells: number,
+		footerRows: number,
+		pixelScale: number,
+	): string[] | null {
+		const shared = this.ensureSharedMemory();
+		if (!shared) {
+			return null;
+		}
+
+		const maxRows = Math.max(1, tui.terminal.rows - footerRows - 1);
+		const cell = getCellDimensions();
+		const maxWidthByRows = Math.floor(
+			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
+		);
+		const maxWidthCells = Math.max(1, Math.min(widthCells, maxWidthByRows));
+		const maxWidthPx = Math.max(1, maxWidthCells * cell.widthPx);
+		const maxHeightPx = Math.max(1, maxRows * cell.heightPx);
+		const maxScale = Math.min(maxWidthPx / FRAME_WIDTH, maxHeightPx / FRAME_HEIGHT);
+		const requestedScale = Math.max(0.5, pixelScale) * maxScale;
+		const scale = Math.min(maxScale, requestedScale);
+		const columns = Math.max(1, Math.min(maxWidthCells, Math.floor((FRAME_WIDTH * scale) / cell.widthPx)));
+		const rows = Math.max(1, Math.min(maxRows, Math.floor((FRAME_HEIGHT * scale) / cell.heightPx)));
+
+		this.fillRawBufferTarget(frameBuffer, shared.buffer);
+
+		let cached = this.cachedShared;
+		if (!cached || cached.columns !== columns || cached.rows !== rows) {
+			const base64Name = this.sharedMemoryBase64 ?? Buffer.from(shared.name).toString("base64");
+			this.sharedMemoryBase64 = base64Name;
+			cached = {
+				sequence: encodeKittyRawSharedMemory(base64Name, {
+					widthPx: FRAME_WIDTH,
+					heightPx: FRAME_HEIGHT,
+					dataSize: RAW_FRAME_BYTES,
+					columns,
+					rows,
+					imageId: this.imageId,
+					zIndex: -1,
+				}),
+				columns,
+				rows,
+			};
+			this.cachedShared = cached;
+		}
+
+		const lines: string[] = [];
+		for (let i = 0; i < rows - 1; i += 1) {
+			lines.push("");
+		}
+		const moveUp = rows > 1 ? `\x1b[${rows - 1}A` : "";
+		this.rawVersion += 1;
+		const marker = `\x1b_f${this.rawVersion}\x07`;
+		lines.push(`${moveUp}${cached.sequence}${marker}`);
+
+		return lines;
 	}
 
 	private renderKittyRaw(
@@ -176,13 +288,45 @@ export class NesImageRenderer {
 	}
 
 	private fillRawBuffer(frameBuffer: ReadonlyArray<number>): void {
+		this.fillRawBufferTarget(frameBuffer, this.rawBuffer);
+	}
+
+	private fillRawBufferTarget(frameBuffer: ReadonlyArray<number>, target: Uint8Array): void {
 		let offset = 0;
 		for (let i = 0; i < FRAME_WIDTH * FRAME_HEIGHT; i += 1) {
 			const color = frameBuffer[i] ?? 0;
-			this.rawBuffer[offset] = color & 0xff;
-			this.rawBuffer[offset + 1] = (color >> 8) & 0xff;
-			this.rawBuffer[offset + 2] = (color >> 16) & 0xff;
+			target[offset] = color & 0xff;
+			target[offset + 1] = (color >> 8) & 0xff;
+			target[offset + 2] = (color >> 16) & 0xff;
 			offset += 3;
+		}
+	}
+
+	private ensureSharedMemory(): SharedMemoryHandle | null {
+		if (this.sharedMemoryDisabled) {
+			return null;
+		}
+		if (this.sharedMemory) {
+			return this.sharedMemory;
+		}
+		const module = getKittyShmModule();
+		if (!module) {
+			this.sharedMemoryDisabled = true;
+			return null;
+		}
+		try {
+			const handle = module.create_shared_memory(RAW_FRAME_BYTES);
+			if (!handle?.buffer || handle.buffer.byteLength < RAW_FRAME_BYTES) {
+				this.sharedMemoryDisabled = true;
+				return null;
+			}
+			this.sharedMemory = handle;
+			this.sharedMemoryBase64 = Buffer.from(handle.name).toString("base64");
+			this.sharedMemoryModule = module;
+			return handle;
+		} catch {
+			this.sharedMemoryDisabled = true;
+			return null;
 		}
 	}
 
@@ -227,6 +371,35 @@ function encodeKittyRawFile(
 	if (options.zIndex !== undefined) params.push(`z=${options.zIndex}`);
 
 	return `\x1b_G${params.join(",")};${base64Path}\x1b\\`;
+}
+
+function encodeKittyRawSharedMemory(
+	base64Name: string,
+	options: {
+		widthPx: number;
+		heightPx: number;
+		dataSize: number;
+		columns?: number;
+		rows?: number;
+		imageId?: number;
+		zIndex?: number;
+	},
+): string {
+	const params: string[] = [
+		"a=T",
+		"f=24",
+		"t=s",
+		`q=2`,
+		`s=${options.widthPx}`,
+		`v=${options.heightPx}`,
+		`S=${options.dataSize}`,
+	];
+	if (options.columns) params.push(`c=${options.columns}`);
+	if (options.rows) params.push(`r=${options.rows}`);
+	if (options.imageId) params.push(`i=${options.imageId}`);
+	if (options.zIndex !== undefined) params.push(`z=${options.zIndex}`);
+
+	return `\x1b_G${params.join(",")};${base64Name}\x1b\\`;
 }
 
 function resolveRawDir(): string {
