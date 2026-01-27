@@ -8,6 +8,9 @@ import { NesSession } from "./nes-session.js";
 import { listRoms } from "./roms.js";
 import { loadSram } from "./saves.js";
 
+const IMAGE_RENDER_INTERVAL_MS = 1000 / 20;
+const TEXT_RENDER_INTERVAL_MS = 1000 / 60;
+
 let activeSession: NesSession | null = null;
 
 async function selectRom(
@@ -100,6 +103,9 @@ async function attachSession(
 					},
 				}
 			: undefined;
+
+		const renderIntervalMs = config.renderer === "image" ? IMAGE_RENDER_INTERVAL_MS : TEXT_RENDER_INTERVAL_MS;
+		session.setRenderIntervalMs(renderIntervalMs);
 
 		await ctx.ui.custom(
 			(tui, _theme, _keybindings, done) => {
