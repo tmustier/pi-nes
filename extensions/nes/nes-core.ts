@@ -1,5 +1,4 @@
 import { Buffer } from "node:buffer";
-import Speaker from "speaker";
 import jsnes from "jsnes";
 
 const { NES, Controller } = jsnes;
@@ -8,10 +7,6 @@ const FRAME_WIDTH = 256;
 const FRAME_HEIGHT = 240;
 const FRAMEBUFFER_SIZE = FRAME_WIDTH * FRAME_HEIGHT;
 const SRAM_SIZE = 0x2000;
-const AUDIO_SAMPLE_RATE = 44100;
-const AUDIO_CHANNELS = 2;
-const AUDIO_BUFFER_FRAMES = 1024;
-const AUDIO_FLUSH_INTERVAL_MS = 40;
 
 export type NesButton = "up" | "down" | "left" | "right" | "a" | "b" | "start" | "select";
 
@@ -44,123 +39,25 @@ const BUTTON_MAP: Record<NesButton, number> = {
 	select: Controller.BUTTON_SELECT,
 };
 
-class AudioOutput {
-	private readonly speaker: Speaker;
-	private readonly pendingSamples: number[] = [];
-	private readonly pendingBuffers: Buffer[] = [];
-	private flushTimer: ReturnType<typeof setInterval> | null = null;
-	private writing = false;
-	private closed = false;
-
-	private constructor(speaker: Speaker) {
-		this.speaker = speaker;
-		this.flushTimer = setInterval(() => {
-			this.flush();
-		}, AUDIO_FLUSH_INTERVAL_MS);
-	}
-
-	static create(): { output: AudioOutput | null; warning: string | null } {
-		try {
-			const speaker = new Speaker({
-				channels: AUDIO_CHANNELS,
-				bitDepth: 16,
-				sampleRate: AUDIO_SAMPLE_RATE,
-				signed: true,
-				float: false,
-				endian: "little",
-			});
-			return { output: new AudioOutput(speaker), warning: null };
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			return { output: null, warning: `Audio disabled: ${message}` };
-		}
-	}
-
-	addSample(left: number, right: number): void {
-		if (this.closed) {
-			return;
-		}
-		this.pendingSamples.push(floatToInt16(left), floatToInt16(right));
-		if (this.pendingSamples.length >= AUDIO_BUFFER_FRAMES * AUDIO_CHANNELS) {
-			this.flush();
-		}
-	}
-
-	close(): void {
-		if (this.closed) {
-			return;
-		}
-		this.closed = true;
-		this.flush();
-		if (this.flushTimer) {
-			clearInterval(this.flushTimer);
-			this.flushTimer = null;
-		}
-		this.speaker.end();
-	}
-
-	private flush(): void {
-		if (this.pendingSamples.length === 0) {
-			return;
-		}
-
-		const buffer = Buffer.allocUnsafe(this.pendingSamples.length * 2);
-		for (let i = 0; i < this.pendingSamples.length; i += 1) {
-			buffer.writeInt16LE(this.pendingSamples[i] ?? 0, i * 2);
-		}
-		this.pendingSamples.length = 0;
-		this.pendingBuffers.push(buffer);
-		this.flushQueue();
-	}
-
-	private flushQueue(): void {
-		if (this.writing || this.closed) {
-			return;
-		}
-		const buffer = this.pendingBuffers.shift();
-		if (!buffer) {
-			return;
-		}
-		this.writing = true;
-		const ok = this.speaker.write(buffer);
-		if (ok) {
-			this.writing = false;
-			setImmediate(() => this.flushQueue());
-			return;
-		}
-		this.speaker.once("drain", () => {
-			this.writing = false;
-			this.flushQueue();
-		});
-	}
-}
-
 class JsnesCore implements NesCore {
 	private readonly nes: InstanceType<typeof NES>;
 	private frameBuffer: ReadonlyArray<number> = new Array(FRAMEBUFFER_SIZE).fill(0);
 	private sram: Uint8Array | null = null;
 	private hasBatteryRam = false;
 	private sramDirty = false;
-	private readonly audioOutput: AudioOutput | null;
 	private readonly audioWarning: string | null;
 
 	constructor(enableAudio: boolean) {
-		const audioResult = enableAudio ? AudioOutput.create() : { output: null, warning: null };
-		this.audioOutput = audioResult.output;
-		this.audioWarning = audioResult.warning;
-		const emulateSound = Boolean(this.audioOutput);
+		this.audioWarning = enableAudio
+			? "Audio output is disabled (no safe dependency available)."
+			: null;
 
 		this.nes = new NES({
 			onFrame: (framebuffer24) => {
 				this.frameBuffer = framebuffer24;
 			},
-			onAudioSample: emulateSound
-				? (left, right) => {
-					this.audioOutput?.addSample(left, right);
-				}
-				: null,
-			emulateSound,
-			sampleRate: AUDIO_SAMPLE_RATE,
+			onAudioSample: null,
+			emulateSound: false,
 			onBatteryRamWrite: (address, value) => {
 				this.handleBatteryRamWrite(address, value);
 			},
@@ -235,9 +132,7 @@ class JsnesCore implements NesCore {
 		this.nes.reset();
 	}
 
-	dispose(): void {
-		this.audioOutput?.close();
-	}
+	dispose(): void {}
 
 	private handleBatteryRamWrite(address: number, value: number): void {
 		if (!this.hasBatteryRam || !this.sram) {
@@ -250,11 +145,6 @@ class JsnesCore implements NesCore {
 		this.sram[offset] = value & 0xff;
 		this.sramDirty = true;
 	}
-}
-
-function floatToInt16(sample: number): number {
-	const clamped = Math.max(-1, Math.min(1, sample));
-	return clamped < 0 ? Math.round(clamped * 0x8000) : Math.round(clamped * 0x7fff);
 }
 
 export function createNesCore(options: CreateNesCoreOptions = {}): NesCore {

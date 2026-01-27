@@ -45,4 +45,4 @@ Example:
 
 ## Audio
 
-Audio output uses the `speaker` module (native). If `enableAudio` is true but audio shows as disabled, ensure `npm install` completes successfully and the module builds on your system.
+Audio output is currently disabled (no safe dependency selected). If you set `enableAudio: true`, the extension will warn and continue in silent mode.

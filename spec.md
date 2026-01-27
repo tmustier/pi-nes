@@ -39,7 +39,6 @@ pi-nes/
       saves.ts          # SRAM load/save
       types/
         jsnes.d.ts      # jsnes type declarations
-        speaker.d.ts    # speaker type declarations
       package.json      # core dependency
 ```
 
@@ -66,6 +65,8 @@ pi-nes/
   - `enableAudio`
   - `keybindings` (button-to-keys map, e.g. `{ "a": ["z"] }`)
 
+Note: audio output is currently disabled; setting `enableAudio` will show a warning.
+
 ## Milestones
 1. Skeleton extension + `/nes` command + overlay renderer
 2. ROM loading + framebuffer rendering
@@ -76,6 +77,6 @@ pi-nes/
 
 ## Decisions
 - Core: jsnes (JS) with mapper 0/1/2/3/4 coverage.
-- Audio: disabled by default (configurable, via speaker module).
+- Audio: disabled (no safe dependency selected).
 - Default ROM dir: `~/roms/nes` (configurable).
 - Default save dir: `~/.pi/nes/saves` (configurable).
