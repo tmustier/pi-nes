@@ -8,7 +8,7 @@ import { NesSession } from "./nes-session.js";
 import { listRoms } from "./roms.js";
 import { loadSram } from "./saves.js";
 
-const IMAGE_RENDER_INTERVAL_MS = 1000 / 20;
+const IMAGE_RENDER_INTERVAL_MS = 1000 / 30;
 const TEXT_RENDER_INTERVAL_MS = 1000 / 60;
 
 let activeSession: NesSession | null = null;

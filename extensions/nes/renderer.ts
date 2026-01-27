@@ -1,15 +1,14 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { PNG } from "pngjs";
 import type { TUI } from "@mariozechner/pi-tui";
 import { Image } from "@mariozechner/pi-tui";
-import {
-	allocateImageId,
-	deleteKittyImage,
-	getCapabilities,
-	getCellDimensions,
-} from "@mariozechner/pi-tui";
+import { allocateImageId, deleteKittyImage, getCapabilities, getCellDimensions } from "@mariozechner/pi-tui";
 
 const FRAME_WIDTH = 256;
 const FRAME_HEIGHT = 240;
+const RAW_FRAME_BYTES = FRAME_WIDTH * FRAME_HEIGHT * 3;
 const KITTY_CHUNK_SIZE = 4096;
 
 export type RendererMode = "image" | "text";
@@ -17,9 +16,12 @@ export type RendererMode = "image" | "text";
 export class NesImageRenderer {
 	private readonly imageId = allocateImageId();
 	private cachedImage?: { base64: string; width: number; height: number };
-	private cachedRaw?: { base64: string; sequence: string; columns: number; rows: number; hash: number };
-	private readonly rawBuffer = Buffer.alloc(FRAME_WIDTH * FRAME_HEIGHT * 3);
+	private cachedRaw?: { sequence: string; columns: number; rows: number };
+	private readonly rawBuffer = Buffer.alloc(RAW_FRAME_BYTES);
+	private readonly rawFilePath = path.join(os.tmpdir(), `pi-nes-tty-graphics-${this.imageId}.raw`);
+	private readonly rawFilePathBase64 = Buffer.from(this.rawFilePath).toString("base64");
 	private lastFrameHash = 0;
+	private rawVersion = 0;
 
 	render(
 		frameBuffer: ReadonlyArray<number>,
@@ -43,6 +45,11 @@ export class NesImageRenderer {
 		this.cachedImage = undefined;
 		this.cachedRaw = undefined;
 		this.lastFrameHash = 0;
+		try {
+			fs.unlinkSync(this.rawFilePath);
+		} catch {
+			// ignore
+		}
 	}
 
 	private renderKittyRaw(
@@ -63,50 +70,38 @@ export class NesImageRenderer {
 		const maxScale = Math.min(maxWidthPx / FRAME_WIDTH, maxHeightPx / FRAME_HEIGHT);
 		const requestedScale = Math.max(0.5, pixelScale) * maxScale;
 		const scale = Math.min(maxScale, requestedScale);
-		const targetColumns = Math.max(
-			1,
-			Math.min(maxWidthCells, Math.floor((FRAME_WIDTH * scale) / cell.widthPx)),
-		);
-		const rows = Math.max(
-			1,
-			Math.min(maxRows, Math.floor((FRAME_HEIGHT * scale) / cell.heightPx)),
-		);
+		const columns = Math.max(1, Math.min(maxWidthCells, Math.floor((FRAME_WIDTH * scale) / cell.widthPx)));
+		const rows = Math.max(1, Math.min(maxRows, Math.floor((FRAME_HEIGHT * scale) / cell.heightPx)));
 
-		const hash = hashFrame(frameBuffer, FRAME_WIDTH, FRAME_HEIGHT);
+		this.fillRawBuffer(frameBuffer);
+		fs.writeFileSync(this.rawFilePath, this.rawBuffer);
+
 		let cached = this.cachedRaw;
-
-		if (!cached || cached.hash !== hash) {
-			this.fillRawBuffer(frameBuffer);
+		if (!cached || cached.columns !== columns || cached.rows !== rows) {
 			cached = {
-				base64: this.rawBuffer.toString("base64"),
-				sequence: "",
-				columns: targetColumns,
+				sequence: encodeKittyRawFile(this.rawFilePathBase64, {
+					widthPx: FRAME_WIDTH,
+					heightPx: FRAME_HEIGHT,
+					dataSize: RAW_FRAME_BYTES,
+					columns,
+					rows,
+					imageId: this.imageId,
+					zIndex: -1,
+				}),
+				columns,
 				rows,
-				hash,
 			};
+			this.cachedRaw = cached;
 		}
-
-		if (cached.columns !== targetColumns || cached.rows !== rows || cached.sequence.length === 0) {
-			cached.sequence = encodeKittyRaw(cached.base64, {
-				widthPx: FRAME_WIDTH,
-				heightPx: FRAME_HEIGHT,
-				columns: targetColumns,
-				rows,
-				imageId: this.imageId,
-				zIndex: -1,
-			});
-			cached.columns = targetColumns;
-			cached.rows = rows;
-		}
-
-		this.cachedRaw = cached;
 
 		const lines: string[] = [];
 		for (let i = 0; i < rows - 1; i += 1) {
 			lines.push("");
 		}
 		const moveUp = rows > 1 ? `\x1b[${rows - 1}A` : "";
-		lines.push(moveUp + cached.sequence);
+		this.rawVersion += 1;
+		const marker = `\x1b_f${this.rawVersion}\x07`;
+		lines.push(`${moveUp}${cached.sequence}${marker}`);
 
 		return lines;
 	}
@@ -180,48 +175,33 @@ export class NesImageRenderer {
 	}
 }
 
-function encodeKittyRaw(
-	base64Data: string,
+function encodeKittyRawFile(
+	base64Path: string,
 	options: {
 		widthPx: number;
 		heightPx: number;
+		dataSize: number;
 		columns?: number;
 		rows?: number;
 		imageId?: number;
 		zIndex?: number;
 	},
 ): string {
-	const params: string[] = ["a=T", "f=24", "q=2", `s=${options.widthPx}`, `v=${options.heightPx}`];
+	const params: string[] = [
+		"a=T",
+		"f=24",
+		"t=f",
+		`q=2`,
+		`s=${options.widthPx}`,
+		`v=${options.heightPx}`,
+		`S=${options.dataSize}`,
+	];
 	if (options.columns) params.push(`c=${options.columns}`);
 	if (options.rows) params.push(`r=${options.rows}`);
 	if (options.imageId) params.push(`i=${options.imageId}`);
 	if (options.zIndex !== undefined) params.push(`z=${options.zIndex}`);
 
-	if (base64Data.length <= KITTY_CHUNK_SIZE) {
-		return `\x1b_G${params.join(",")};${base64Data}\x1b\\`;
-	}
-
-	const chunks: string[] = [];
-	let offset = 0;
-	let isFirst = true;
-
-	while (offset < base64Data.length) {
-		const chunk = base64Data.slice(offset, offset + KITTY_CHUNK_SIZE);
-		const isLast = offset + KITTY_CHUNK_SIZE >= base64Data.length;
-
-		if (isFirst) {
-			chunks.push(`\x1b_G${params.join(",")},m=1;${chunk}\x1b\\`);
-			isFirst = false;
-		} else if (isLast) {
-			chunks.push(`\x1b_Gm=0;${chunk}\x1b\\`);
-		} else {
-			chunks.push(`\x1b_Gm=1;${chunk}\x1b\\`);
-		}
-
-		offset += KITTY_CHUNK_SIZE;
-	}
-
-	return chunks.join("");
+	return `\x1b_G${params.join(",")};${base64Path}\x1b\\`;
 }
 
 function hashFrame(frameBuffer: ReadonlyArray<number>, width: number, height: number): number {
