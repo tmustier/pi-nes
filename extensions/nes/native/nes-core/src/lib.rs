@@ -32,8 +32,8 @@ impl NativeNes {
 	}
 
 	#[napi]
-	pub fn set_rom(&mut self, data: Vec<u8>) {
-		let rom = Rom::new(data);
+	pub fn set_rom(&mut self, data: napi::bindgen_prelude::Uint8Array) {
+		let rom = Rom::new(data.to_vec());
 		self.nes.set_rom(rom);
 	}
 

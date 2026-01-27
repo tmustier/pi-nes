@@ -9,17 +9,23 @@ cd /Users/thomasmustier/projects/pi-nes
 npm install
 ```
 
-### Optional: build the native shared-memory renderer (Kitty)
+### Optional: build native addons (Kitty shared memory + native core)
 
 Requires a Rust toolchain (cargo + rustc).
 
 ```bash
+# Kitty shared-memory renderer
 cd /Users/thomasmustier/projects/pi-nes/extensions/nes/native/kitty-shm
+npm install
+npm run build
+
+# Native NES core
+cd /Users/thomasmustier/projects/pi-nes/extensions/nes/native/nes-core
 npm install
 npm run build
 ```
 
-If you skip this step, the renderer falls back to the Kitty file transport path.
+If you skip these steps, the renderer falls back to the Kitty file transport path and the emulator core falls back to JS/WASM.
 
 ## Install as a pi package
 
@@ -55,7 +61,7 @@ Example:
   "romDir": "/Users/you/roms/nes",
   "saveDir": "/Users/you/.pi/nes/saves",
   "enableAudio": false,
-  "core": "jsnes",
+  "core": "native",
   "renderer": "image",
   "pixelScale": 1,
   "keybindings": {
@@ -75,6 +81,7 @@ Example:
 
 - `core: "jsnes"` (default) supports battery-backed SRAM saves.
 - `core: "wasm"` is faster but **does not persist battery saves yet**.
+- `core: "native"` uses the Rust core (no SRAM persistence yet). Requires building the native addon.
 
 ## Rendering
 

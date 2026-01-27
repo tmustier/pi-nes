@@ -5,7 +5,7 @@ Create a pi extension that plays NES games (Zelda, Mario, Metroid, and other ROM
 
 ## Approach Summary
 - Build a **pi extension** that registers a `/nes` command.
-- Use a **JS/WASM NES core** with mapper support for classic titles (MMC1, NROM, UNROM, MMC3 at minimum).
+- Use a **JS/WASM/native NES core** with mapper support for classic titles (MMC1, NROM, UNROM, MMC3 at minimum).
 - Render frames in a custom TUI component using ANSI half‑block characters (same approach as `examples/extensions/doom-overlay`).
 - Persist battery-backed SRAM per ROM.
 
@@ -17,6 +17,7 @@ Create a pi extension that plays NES games (Zelda, Mario, Metroid, and other ROM
 ## Core Selection
 - Default core: **jsnes@1.2.1** (pure JS) with mapper support for 0/1/2/3/4/5/7/11/34/38/66/94/140/180.
 - Optional core: **nes_rust_wasm** (WASM, faster) with no SRAM persistence exposed yet.
+- Optional core: **native** (Rust `nes_rust` via napi-rs) for improved performance (no SRAM persistence yet).
 
 If performance or compatibility is insufficient, consider a more accurate WASM core (e.g., Nestopia/Mesen build) behind the same wrapper interface.
 
@@ -45,6 +46,7 @@ pi-nes/
         jsnes.d.ts      # jsnes type declarations
       native/
         kitty-shm/      # napi-rs shared memory addon (Kitty t=s)
+        nes-core/       # napi-rs native NES core (nes_rust)
 ```
 
 ## Rendering
@@ -66,14 +68,14 @@ pi-nes/
 - Load SRAM on ROM start.
 - Persist on exit and periodically (e.g., every 5–10 seconds).
 
-Note: the `wasm` core does not currently expose SRAM for persistence.
+Note: the `wasm` and `native` cores do not currently expose SRAM for persistence.
 
 ## Configuration
 - `~/.pi/nes/config.json` with:
   - `romDir`
   - `saveDir`
   - `enableAudio`
-  - `core` ("jsnes" or "wasm")
+  - `core` ("jsnes", "wasm", or "native")
   - `renderer` ("image" or "text")
   - `pixelScale` (float, e.g. 1.5)
   - `keybindings` (button-to-keys map, e.g. `{ "a": ["z"] }`)

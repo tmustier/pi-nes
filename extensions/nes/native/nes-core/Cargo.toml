@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 libc = "0.2"
-nes_rust = { git = "https://github.com/takahirox/nes-rust.git", tag = "v0.1.2" }
+nes_rust = "0.1.2"
 napi = { version = "2", features = ["napi8"] }
 napi-derive = "2"
 
