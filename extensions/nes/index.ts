@@ -47,6 +47,27 @@ async function selectRom(
 	}
 }
 
+function parseArgs(args?: string): { debug: boolean; romArg?: string } {
+	if (!args) {
+		return { debug: false, romArg: undefined };
+	}
+	const trimmed = args.trim();
+	if (!trimmed) {
+		return { debug: false, romArg: undefined };
+	}
+	const lower = trimmed.toLowerCase();
+	if (lower === "debug") {
+		return { debug: true, romArg: undefined };
+	}
+	if (lower.startsWith("debug ")) {
+		return { debug: true, romArg: trimmed.slice(5).trim() || undefined };
+	}
+	if (lower.startsWith("--debug")) {
+		return { debug: true, romArg: trimmed.slice(7).trim() || undefined };
+	}
+	return { debug: false, romArg: trimmed };
+}
+
 async function createSession(romPath: string, ctx: ExtensionCommandContext, config: Awaited<ReturnType<typeof loadConfig>>): Promise<NesSession | null> {
 	let romData: Uint8Array;
 	try {
@@ -91,6 +112,7 @@ async function attachSession(
 	session: NesSession,
 	ctx: ExtensionCommandContext,
 	config: Awaited<ReturnType<typeof loadConfig>>,
+	debug = false,
 ): Promise<boolean> {
 	let shouldStop = false;
 	try {
@@ -124,6 +146,9 @@ async function attachSession(
 					config.keybindings,
 					config.renderer,
 					config.pixelScale,
+					debug,
+					() => session.getStats(),
+					config.core,
 				);
 			},
 			overlayOptions,
@@ -152,9 +177,10 @@ export default function (pi: ExtensionAPI) {
 
 			const config = await loadConfig();
 			const configPath = getConfigPath();
+			const { debug, romArg } = parseArgs(args);
 
-			if (!args?.trim() && activeSession) {
-				const shouldStop = await attachSession(activeSession, ctx, config);
+			if (!romArg && activeSession) {
+				const shouldStop = await attachSession(activeSession, ctx, config, debug);
 				if (shouldStop) {
 					await activeSession.stop();
 					activeSession = null;
@@ -162,7 +188,7 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			const romPath = await selectRom(args, config.romDir, configPath, ctx.cwd, ctx);
+			const romPath = await selectRom(romArg, config.romDir, configPath, ctx.cwd, ctx);
 			if (!romPath) {
 				return;
 			}
@@ -181,7 +207,7 @@ export default function (pi: ExtensionAPI) {
 				activeSession = session;
 			}
 
-			const shouldStop = await attachSession(activeSession, ctx, config);
+			const shouldStop = await attachSession(activeSession, ctx, config, debug);
 			if (shouldStop) {
 				await activeSession.stop();
 				activeSession = null;

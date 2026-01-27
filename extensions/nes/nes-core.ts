@@ -63,6 +63,7 @@ interface NativeNesInstance {
 	setRom(rom: Uint8Array): void;
 	bootup(): void;
 	stepFrame(): void;
+	refreshFramebuffer(): void;
 	reset(): void;
 	pressButton(button: number): void;
 	releaseButton(button: number): void;
@@ -212,6 +213,7 @@ class JsnesCore implements NesCore {
 class NativeNesCore implements NesCore {
 	private readonly nes: NativeNesInstance;
 	private readonly audioWarning: string | null;
+	private readonly frameBuffer: Uint8Array;
 
 	constructor(enableAudio: boolean) {
 		this.audioWarning = enableAudio
@@ -222,6 +224,7 @@ class NativeNesCore implements NesCore {
 			throw new Error("Native NES core addon is not available.");
 		}
 		this.nes = new module.NativeNes();
+		this.frameBuffer = this.nes.getFramebuffer();
 	}
 
 	loadRom(rom: Uint8Array): void {
@@ -231,10 +234,11 @@ class NativeNesCore implements NesCore {
 
 	tick(): void {
 		this.nes.stepFrame();
+		this.nes.refreshFramebuffer();
 	}
 
 	getFrameBuffer(): FrameBuffer {
-		return { format: "rgb", data: this.nes.getFramebuffer() };
+		return { format: "rgb", data: this.frameBuffer };
 	}
 
 	setButton(button: NesButton, pressed: boolean): void {

@@ -3,6 +3,7 @@ import { isKeyRelease, matchesKey, truncateToWidth } from "@mariozechner/pi-tui"
 import type { InputMapping } from "./input-map.js";
 import { DEFAULT_INPUT_MAPPING, getMappedButtons } from "./input-map.js";
 import type { FrameBuffer, NesCore } from "./nes-core.js";
+import type { NesSessionStats } from "./nes-session.js";
 import type { RendererMode } from "./renderer.js";
 import { NesImageRenderer } from "./renderer.js";
 
@@ -88,6 +89,9 @@ export class NesOverlayComponent implements Component {
 	private readonly imageRenderer = new NesImageRenderer();
 	private readonly rendererMode: RendererMode;
 	private readonly pixelScale: number;
+	private readonly debug: boolean;
+	private readonly statsProvider?: () => NesSessionStats;
+	private readonly debugLabel?: string;
 	private imageCleared = false;
 
 	constructor(
@@ -98,10 +102,16 @@ export class NesOverlayComponent implements Component {
 		inputMapping: InputMapping = DEFAULT_INPUT_MAPPING,
 		rendererMode: RendererMode = "image",
 		pixelScale = 1,
+		debug = false,
+		statsProvider?: () => NesSessionStats,
+		debugLabel?: string,
 	) {
 		this.inputMapping = inputMapping;
 		this.rendererMode = rendererMode;
 		this.pixelScale = pixelScale;
+		this.debug = debug;
+		this.statsProvider = statsProvider;
+		this.debugLabel = debugLabel;
 	}
 
 	handleInput(data: string): void {
@@ -140,6 +150,7 @@ export class NesOverlayComponent implements Component {
 
 		const footer = " NES | Ctrl+Q=Detach | Q=Quit | WASD/Arrows=Move | Z/X=A/B | Enter/Space=Start | Tab=Select";
 		const frameBuffer = this.core.getFrameBuffer();
+		const debugLine = this.debug ? this.buildDebugLine() : null;
 		if (this.rendererMode === "image") {
 			const lines = this.imageRenderer.render(
 				frameBuffer,
@@ -148,6 +159,9 @@ export class NesOverlayComponent implements Component {
 				1,
 				this.pixelScale,
 			);
+			if (debugLine) {
+				lines.push(truncateToWidth(debugLine, width));
+			}
 			lines.push(truncateToWidth(`\x1b[2m${footer}\x1b[0m`, width));
 			return lines;
 		}
@@ -163,6 +177,9 @@ export class NesOverlayComponent implements Component {
 
 		const rawLines = renderHalfBlock(frameBuffer, targetCols, targetRows, scaleX, scaleY);
 		const lines = rawLines.map((line) => truncateToWidth(`${padPrefix}${line}`, width));
+		if (debugLine) {
+			lines.push(truncateToWidth(`${padPrefix}${debugLine}`, width));
+		}
 		lines.push(truncateToWidth(`\x1b[2m${padPrefix}${footer}\x1b[0m`, width));
 		return lines;
 	}
@@ -183,6 +200,19 @@ export class NesOverlayComponent implements Component {
 		}
 		this.imageRenderer.dispose(this.tui);
 		this.imageCleared = true;
+	}
+
+	private buildDebugLine(): string | null {
+		const stats = this.statsProvider?.();
+		if (!stats) {
+			return null;
+		}
+		const memMb = process.memoryUsage().heapUsed / 1024 / 1024;
+		const label = this.debugLabel ? ` core=${this.debugLabel}` : "";
+		const line = `DEBUG${label} fps=${stats.tickFps.toFixed(1)} render=${stats.renderFps.toFixed(1)} `
+			+ `frames/tick=${stats.avgFramesPerTick.toFixed(2)} dropped=${stats.droppedFrames} `
+			+ `catch=${stats.lastCatchUpFrames}/${stats.maxCatchUpFrames} mem=${memMb.toFixed(1)}MB`;
+		return `\x1b[33m${line}\x1b[0m`;
 	}
 
 	private tapButton(button: "start" | "select"): void {

@@ -24,6 +24,7 @@ If performance or compatibility is insufficient, consider a more accurate WASM c
 ## User Flow
 - `/nes` opens a ROM picker (from configured ROM directory) or reattaches to a running session
 - `/nes <path>` loads a ROM directly (reuses the running session if same ROM)
+- `/nes debug [<path>]` enables a debug overlay (FPS/memory stats)
 - `Ctrl+Q` detaches overlay (session keeps running)
 - `Q` quits emulator and persists SRAM
 - Optional: `/nes-config` to set ROM directory and keybindings

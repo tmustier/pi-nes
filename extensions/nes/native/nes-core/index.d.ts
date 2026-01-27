@@ -5,6 +5,7 @@ export class NativeNes {
   setRom(data: Uint8Array): void;
   bootup(): void;
   stepFrame(): void;
+  refreshFramebuffer(): void;
   reset(): void;
   pressButton(button: number): void;
   releaseButton(button: number): void;

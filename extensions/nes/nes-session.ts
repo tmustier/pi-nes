@@ -17,6 +17,17 @@ export interface NesSessionOptions {
 	maxCatchUpFrames?: number;
 }
 
+export interface NesSessionStats {
+	tickFps: number;
+	renderFps: number;
+	avgFramesPerTick: number;
+	droppedFrames: number;
+	lastCatchUpFrames: number;
+	maxCatchUpFrames: number;
+	frameIntervalMs: number;
+	renderIntervalMs: number;
+}
+
 export class NesSession {
 	readonly romPath: string;
 	readonly core: NesCore;
@@ -33,6 +44,15 @@ export class NesSession {
 	private lastTickTime = 0;
 	private accumulatedTime = 0;
 	private lastRenderTime = 0;
+	private lastCatchUpFrames = 0;
+	private stats: NesSessionStats;
+	private statsWindow = {
+		startTime: 0,
+		frames: 0,
+		renders: 0,
+		ticks: 0,
+		dropped: 0,
+	};
 
 	constructor(options: NesSessionOptions) {
 		this.core = options.core;
@@ -42,6 +62,16 @@ export class NesSession {
 		this.renderIntervalMs = options.renderIntervalMs ?? DEFAULT_RENDER_INTERVAL_MS;
 		this.saveIntervalMs = options.saveIntervalMs ?? DEFAULT_SAVE_INTERVAL_MS;
 		this.maxCatchUpFrames = options.maxCatchUpFrames ?? DEFAULT_MAX_CATCH_UP_FRAMES;
+		this.stats = {
+			tickFps: 0,
+			renderFps: 0,
+			avgFramesPerTick: 0,
+			droppedFrames: 0,
+			lastCatchUpFrames: 0,
+			maxCatchUpFrames: this.maxCatchUpFrames,
+			frameIntervalMs: this.frameIntervalMs,
+			renderIntervalMs: this.renderIntervalMs,
+		};
 	}
 
 	start(): void {
@@ -51,6 +81,11 @@ export class NesSession {
 		this.lastTickTime = performance.now();
 		this.lastRenderTime = this.lastTickTime;
 		this.accumulatedTime = 0;
+		this.statsWindow.startTime = this.lastTickTime;
+		this.statsWindow.frames = 0;
+		this.statsWindow.renders = 0;
+		this.statsWindow.ticks = 0;
+		this.statsWindow.dropped = 0;
 		this.tickTimer = setInterval(() => {
 			this.tick();
 		}, this.frameIntervalMs);
@@ -66,6 +101,11 @@ export class NesSession {
 
 	setRenderIntervalMs(intervalMs: number): void {
 		this.renderIntervalMs = Math.max(0, intervalMs);
+		this.stats.renderIntervalMs = this.renderIntervalMs;
+	}
+
+	getStats(): NesSessionStats {
+		return this.stats;
 	}
 
 	async stop(): Promise<void> {
@@ -108,13 +148,40 @@ export class NesSession {
 				this.accumulatedTime -= framesDue * this.frameIntervalMs;
 			}
 
+			const droppedFrames = Math.max(0, framesDue - framesToRun);
+			this.lastCatchUpFrames = framesDue;
+			this.statsWindow.frames += framesToRun;
+			this.statsWindow.ticks += 1;
+			this.statsWindow.dropped += droppedFrames;
+
 			for (let i = 0; i < framesToRun; i += 1) {
 				this.core.tick();
 			}
 
 			if (this.renderHook && now - this.lastRenderTime >= this.renderIntervalMs) {
 				this.lastRenderTime = now;
+				this.statsWindow.renders += 1;
 				this.renderHook();
+			}
+
+			const windowDuration = now - this.statsWindow.startTime;
+			if (windowDuration >= 1000) {
+				const seconds = windowDuration / 1000;
+				this.stats = {
+					tickFps: this.statsWindow.frames / seconds,
+					renderFps: this.statsWindow.renders / seconds,
+					avgFramesPerTick: this.statsWindow.ticks > 0 ? this.statsWindow.frames / this.statsWindow.ticks : 0,
+					droppedFrames: this.statsWindow.dropped,
+					lastCatchUpFrames: this.lastCatchUpFrames,
+					maxCatchUpFrames: this.maxCatchUpFrames,
+					frameIntervalMs: this.frameIntervalMs,
+					renderIntervalMs: this.renderIntervalMs,
+				};
+				this.statsWindow.startTime = now;
+				this.statsWindow.frames = 0;
+				this.statsWindow.renders = 0;
+				this.statsWindow.ticks = 0;
+				this.statsWindow.dropped = 0;
 			}
 		} catch {
 			void this.stop();

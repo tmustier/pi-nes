@@ -1,3 +1,4 @@
+use napi::bindgen_prelude::Uint8Array;
 use napi_derive::napi;
 use nes_rust::button::Button;
 use nes_rust::default_audio::DefaultAudio;
@@ -84,6 +85,11 @@ impl NativeNes {
 	}
 
 	#[napi]
+	pub fn refresh_framebuffer(&mut self) {
+		self.nes.copy_pixels(&mut self.framebuffer);
+	}
+
+	#[napi]
 	pub fn reset(&mut self) {
 		self.nes.reset();
 	}
@@ -103,9 +109,10 @@ impl NativeNes {
 	}
 
 	#[napi]
-	pub fn get_framebuffer(&mut self) -> Vec<u8> {
-		self.nes.copy_pixels(&mut self.framebuffer);
-		self.framebuffer.clone()
+	pub fn get_framebuffer(&mut self) -> Uint8Array {
+		let ptr = self.framebuffer.as_mut_ptr();
+		let len = self.framebuffer.len();
+		unsafe { Uint8Array::with_external_data(ptr, len, |_data, _len| {}) }
 	}
 }
 

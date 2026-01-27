@@ -43,6 +43,7 @@ pi --extension /Users/thomasmustier/projects/pi-nes
 Commands:
 - `/nes` — pick a ROM from the configured directory or reattach to a running session
 - `/nes <path>` — load a specific ROM
+- `/nes debug [<path>]` — enable debug overlay (FPS/memory stats)
 - `/nes-config` — edit configuration
 
 Controls:
