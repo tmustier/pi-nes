@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use libc::{c_void, close, ftruncate, mmap, munmap, shm_open, shm_unlink, MAP_FAILED, MAP_SHARED, O_CREAT, O_EXCL, O_RDWR, PROT_READ, PROT_WRITE};
 use napi::bindgen_prelude::*;
@@ -161,9 +160,5 @@ fn close_shared_memory_internal(name: &str) -> bool {
 
 fn generate_name() -> String {
 	let counter = COUNTER.fetch_add(1, Ordering::Relaxed);
-	let now = SystemTime::now()
-		.duration_since(UNIX_EPOCH)
-		.unwrap_or_default()
-		.as_nanos();
-	format!("/pi-nes-shm-{pid}-{now}-{counter}", pid = std::process::id())
+	format!("/pnes-{pid}-{counter}", pid = std::process::id())
 }

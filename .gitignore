@@ -4,6 +4,7 @@ node_modules/
 *.tgz
 *.node
 Cargo.lock
+extensions/nes/native/kitty-shm/native.d.ts
 package-lock.json
 .ralph/
 target/
