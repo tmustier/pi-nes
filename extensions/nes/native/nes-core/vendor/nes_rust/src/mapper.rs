@@ -118,7 +118,11 @@ impl Mapper for MMC1Mapper {
 	fn map(&self, address: u32) -> u32 {
 		let bank: u32;
 		let mut offset = address & 0x3FFF;
-		let bank_num = self.prg_bank_register.load() as u32 & 0x1F;
+		let bank_mask = if self.program_bank_num > 16 { 0x1F } else { 0x0F };
+		let mut bank_num = self.prg_bank_register.load() as u32 & bank_mask;
+		if self.program_bank_num > 0 {
+			bank_num %= self.program_bank_num as u32;
+		}
 
 		match self.control_register.load_bits(2, 2) {
 			0 | 1 => {
@@ -167,23 +171,23 @@ impl Mapper for MMC1Mapper {
 			self.register_write_count = 0;
 			self.latch.clear();
 			if (address & 0x6000) == 0 {
-				self.control_register.store_bits(2, 2, 3);
+				self.control_register.store(0x0C);
 			}
-		} else {
-			self.latch.store(((value & 1) << 4) | (self.latch.load() >> 1));
-			self.register_write_count += 1;
+			return;
+		}
+		self.latch.store(((value & 1) << 4) | (self.latch.load() >> 1));
+		self.register_write_count += 1;
 
-			if self.register_write_count >= 5 {
-				let val = self.latch.load();
-				match address & 0x6000 {
-					0x0000 => self.control_register.store(val),
-					0x2000 => self.chr_bank0_register.store(val),
-					0x4000 => self.chr_bank1_register.store(val),
-					_ /*0x6000*/ => self.prg_bank_register.store(val)
-				};
-				self.register_write_count = 0;
-				self.latch.clear();
-			}
+		if self.register_write_count >= 5 {
+			let val = self.latch.load();
+			match address & 0x6000 {
+				0x0000 => self.control_register.store(val),
+				0x2000 => self.chr_bank0_register.store(val),
+				0x4000 => self.chr_bank1_register.store(val),
+				_ /*0x6000*/ => self.prg_bank_register.store(val)
+			};
+			self.register_write_count = 0;
+			self.latch.clear();
 		}
 	}
 
