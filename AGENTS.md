@@ -23,7 +23,8 @@ pi-nes/
     ├── saves.ts              # SRAM persistence
     └── native/
         ├── nes-core/         # Rust NES emulator addon (required)
-        │   ├── Cargo.toml    # Dependencies: nes_rust, napi
+        │   ├── Cargo.toml    # Dependencies: vendored nes_rust, napi
+        │   ├── vendor/nes_rust/ # Patched nes_rust crate (SRAM helpers)
         │   ├── src/lib.rs    # Exposes NativeNes class via napi-rs
         │   └── index.node    # Compiled binary
         └── kitty-shm/        # Rust shared memory addon (optional)
@@ -33,7 +34,7 @@ pi-nes/
 
 ### Native Core
 
-The emulator uses the [`nes_rust`](https://crates.io/crates/nes_rust) crate with [napi-rs](https://napi.rs) bindings.
+The emulator uses the [`nes_rust`](https://crates.io/crates/nes_rust) crate (vendored + patched in `native/nes-core/vendor/nes_rust` for SRAM helpers) with [napi-rs](https://napi.rs) bindings.
 
 **API exposed to JavaScript:**
 - `new NativeNes()` - Create emulator instance
@@ -41,6 +42,9 @@ The emulator uses the [`nes_rust`](https://crates.io/crates/nes_rust) crate with
 - `bootup()` / `reset()` - Start/restart emulation
 - `stepFrame()` - Advance one frame (~60fps)
 - `pressButton(n)` / `releaseButton(n)` - Controller input (0=select, 1=start, 2=A, 3=B, 4-7=dpad)
+- `hasBatteryBackedRam()` - Whether the ROM supports battery SRAM
+- `getSram()` / `setSram(Uint8Array)` - Read/write SRAM
+- `isSramDirty()` / `markSramSaved()` - Dirty tracking for SRAM persistence
 - `getFramebuffer()` - Returns RGB pixel data (256×240×3 bytes, zero-copy via external buffer)
 
 ### Rendering Pipeline
