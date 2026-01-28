@@ -145,6 +145,7 @@ export class NesImageRenderer {
 		const scale = Math.min(maxScale, requestedScale);
 		const columns = Math.max(1, Math.min(maxWidthCells, Math.floor((FRAME_WIDTH * scale) / cell.widthPx)));
 		const rows = Math.max(1, Math.min(maxRows, Math.floor((FRAME_HEIGHT * scale) / cell.heightPx)));
+		const padLeft = getHorizontalPadding(widthCells, columns);
 
 		this.fillRawBufferTarget(frameBuffer, shared.buffer);
 		const base64Name = Buffer.from(shared.name).toString("base64");
@@ -167,7 +168,7 @@ export class NesImageRenderer {
 		const marker = `\x1b_pi:nes:${this.rawVersion}\x07`;
 		lines.push(`${moveUp}${sequence}${marker}`);
 
-		return centerLines(lines, availableRows);
+		return centerLines(applyHorizontalPadding(lines, padLeft), availableRows);
 	}
 
 	private renderKittyRaw(
@@ -191,6 +192,7 @@ export class NesImageRenderer {
 		const scale = Math.min(maxScale, requestedScale);
 		const columns = Math.max(1, Math.min(maxWidthCells, Math.floor((FRAME_WIDTH * scale) / cell.widthPx)));
 		const rows = Math.max(1, Math.min(maxRows, Math.floor((FRAME_HEIGHT * scale) / cell.heightPx)));
+		const padLeft = getHorizontalPadding(widthCells, columns);
 
 		this.fillRawBuffer(frameBuffer);
 		const fd = this.ensureRawFile();
@@ -223,7 +225,7 @@ export class NesImageRenderer {
 		const marker = `\x1b_pi:nes:${this.rawVersion}\x07`;
 		lines.push(`${moveUp}${cached.sequence}${marker}`);
 
-		return centerLines(lines, availableRows);
+		return centerLines(applyHorizontalPadding(lines, padLeft), availableRows);
 	}
 
 	private renderPng(
@@ -248,6 +250,8 @@ export class NesImageRenderer {
 		) * pixelScale;
 		const targetWidth = Math.max(1, Math.floor(FRAME_WIDTH * scale));
 		const targetHeight = Math.max(1, Math.floor(FRAME_HEIGHT * scale));
+		const columns = Math.max(1, Math.min(maxWidthCells, Math.floor(targetWidth / cell.widthPx)));
+		const padLeft = getHorizontalPadding(widthCells, columns);
 
 		const hash = hashFrame(frameBuffer, targetWidth, targetHeight);
 		if (!this.cachedImage || this.lastFrameHash !== hash) {
@@ -281,7 +285,7 @@ export class NesImageRenderer {
 			{ widthPx: this.cachedImage.width, heightPx: this.cachedImage.height },
 		);
 
-		return centerLines(image.render(widthCells), availableRows);
+		return centerLines(applyHorizontalPadding(image.render(widthCells), padLeft), availableRows);
 	}
 
 	private fillRawBuffer(frameBuffer: FrameBuffer): void {
@@ -465,6 +469,29 @@ function centerLines(lines: string[], totalRows: number): string[] {
 	const top = Array.from({ length: topPadding }, () => "");
 	const bottom = Array.from({ length: bottomPadding }, () => "");
 	return [...top, ...lines, ...bottom];
+}
+
+function getHorizontalPadding(widthCells: number, columns: number): number {
+	return Math.max(0, Math.floor((widthCells - columns) / 2));
+}
+
+function applyHorizontalPadding(lines: string[], padLeft: number): string[] {
+	if (padLeft <= 0 || lines.length === 0) {
+		return lines;
+	}
+	const padded = [...lines];
+	const lastIndex = padded.length - 1;
+	padded[lastIndex] = insertPaddingAfterMoveUp(padded[lastIndex], padLeft);
+	return padded;
+}
+
+function insertPaddingAfterMoveUp(line: string, padLeft: number): string {
+	const padding = " ".repeat(padLeft);
+	const match = line.match(/^\x1b\[(\d+)A/);
+	if (match) {
+		return `${match[0]}${padding}${line.slice(match[0].length)}`;
+	}
+	return `${padding}${line}`;
 }
 
 function readRgb(frameBuffer: FrameBuffer, index: number): [number, number, number] {
