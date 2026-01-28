@@ -131,6 +131,7 @@ export class NesImageRenderer {
 			return null;
 		}
 
+		const availableRows = getAvailableRows(tui, footerRows);
 		const maxRows = getMaxImageRows(tui, footerRows);
 		const cell = getCellDimensions();
 		const maxWidthByRows = Math.floor(
@@ -166,7 +167,7 @@ export class NesImageRenderer {
 		const marker = `\x1b_pi:nes:${this.rawVersion}\x07`;
 		lines.push(`${moveUp}${sequence}${marker}`);
 
-		return lines;
+		return centerLines(lines, availableRows);
 	}
 
 	private renderKittyRaw(
@@ -176,6 +177,7 @@ export class NesImageRenderer {
 		footerRows: number,
 		pixelScale: number,
 	): string[] {
+		const availableRows = getAvailableRows(tui, footerRows);
 		const maxRows = getMaxImageRows(tui, footerRows);
 		const cell = getCellDimensions();
 		const maxWidthByRows = Math.floor(
@@ -221,7 +223,7 @@ export class NesImageRenderer {
 		const marker = `\x1b_pi:nes:${this.rawVersion}\x07`;
 		lines.push(`${moveUp}${cached.sequence}${marker}`);
 
-		return lines;
+		return centerLines(lines, availableRows);
 	}
 
 	private renderPng(
@@ -231,6 +233,7 @@ export class NesImageRenderer {
 		footerRows: number,
 		pixelScale: number,
 	): string[] {
+		const availableRows = getAvailableRows(tui, footerRows);
 		const maxRows = getMaxImageRows(tui, footerRows);
 		const cell = getCellDimensions();
 		const maxWidthByRows = Math.floor(
@@ -278,7 +281,7 @@ export class NesImageRenderer {
 			{ widthPx: this.cachedImage.width, heightPx: this.cachedImage.height },
 		);
 
-		return image.render(widthCells);
+		return centerLines(image.render(widthCells), availableRows);
 	}
 
 	private fillRawBuffer(frameBuffer: FrameBuffer): void {
@@ -443,9 +446,25 @@ function resolveRawDir(): string {
 	return os.tmpdir();
 }
 
+function getAvailableRows(tui: TUI, footerRows: number): number {
+	return Math.max(1, tui.terminal.rows - footerRows);
+}
+
 function getMaxImageRows(tui: TUI, footerRows: number): number {
-	const availableRows = Math.max(1, tui.terminal.rows - footerRows);
+	const availableRows = getAvailableRows(tui, footerRows);
 	return Math.max(1, Math.floor(availableRows * IMAGE_HEIGHT_RATIO));
+}
+
+function centerLines(lines: string[], totalRows: number): string[] {
+	if (lines.length >= totalRows) {
+		return lines;
+	}
+	const padding = totalRows - lines.length;
+	const topPadding = Math.floor(padding / 2);
+	const bottomPadding = padding - topPadding;
+	const top = Array.from({ length: topPadding }, () => "");
+	const bottom = Array.from({ length: bottomPadding }, () => "");
+	return [...top, ...lines, ...bottom];
 }
 
 function readRgb(frameBuffer: FrameBuffer, index: number): [number, number, number] {
