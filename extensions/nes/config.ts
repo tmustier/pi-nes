@@ -59,11 +59,7 @@ export function normalizeConfig(raw: unknown): NesConfig {
 			? normalizePath(parsed.saveDir, saveDirFallback)
 			: saveDirFallback;
 	const imageQuality = normalizeImageQuality(parsed.imageQuality);
-	const maxPixelScale = imageQuality === "high" ? 1.5 : 1.0;
-	const pixelScale =
-		typeof parsed.pixelScale === "number" && !Number.isNaN(parsed.pixelScale)
-			? normalizePixelScale(parsed.pixelScale, maxPixelScale)
-			: maxPixelScale;
+	const pixelScale = normalizePixelScale(parsed.pixelScale);
 	return {
 		romDir,
 		saveDir,
@@ -115,8 +111,11 @@ async function ensureDirectory(dirPath: string): Promise<void> {
 	}
 }
 
-function normalizePixelScale(raw: number, maxPixelScale: number): number {
-	return Math.min(maxPixelScale, Math.max(0.5, raw));
+function normalizePixelScale(raw: unknown): number {
+	if (typeof raw !== "number" || Number.isNaN(raw)) {
+		return DEFAULT_CONFIG.pixelScale;
+	}
+	return Math.min(4, Math.max(0.5, raw));
 }
 
 function normalizeImageQuality(raw: unknown): ImageQuality {

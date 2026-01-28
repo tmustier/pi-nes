@@ -176,8 +176,8 @@ async function configureWithWizard(
 	}
 
 	const qualityChoice = await ctx.ui.select("Quality", [
-		"Balanced (recommended) — 30 fps, max pixel scale 1.0",
-		"High — 60 fps, max pixel scale 1.5",
+		"Balanced (recommended) — 30 fps",
+		"High — 60 fps",
 	]);
 	if (!qualityChoice) {
 		return false;
@@ -185,7 +185,7 @@ async function configureWithWizard(
 
 	const isHighQuality = qualityChoice.startsWith("High");
 	const imageQuality = isHighQuality ? "high" : "balanced";
-	const pixelScale = isHighQuality ? 1.5 : 1.0;
+	const pixelScale = config.pixelScale;
 
 	const defaultSaveDir = getDefaultSaveDir(config.romDir);
 	const shouldSyncSaveDir = config.saveDir === defaultSaveDir;

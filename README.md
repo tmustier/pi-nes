@@ -83,8 +83,8 @@ Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for quick setup.
 | `romDir` | `/roms/nes` | Where to look for ROM files |
 | `saveDir` | `/roms/nes/saves` | Where to store battery saves (defaults to `<romDir>/saves`) |
 | `renderer` | `"image"` | `"image"` (Kitty graphics) or `"text"` (ANSI) |
-| `imageQuality` | `"balanced"` | `"balanced"` (30 fps, max pixel scale 1.0) or `"high"` (60 fps, max pixel scale 1.5) |
-| `pixelScale` | `1.0` | Display scale (0.5–1.0 balanced, 0.5–1.5 high) |
+| `imageQuality` | `"balanced"` | `"balanced"` (30 fps) or `"high"` (60 fps) |
+| `pixelScale` | `1.0` | Display scale (0.5–4.0) |
 
 ## Terminal Support
 
