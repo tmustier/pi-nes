@@ -54,14 +54,15 @@ On first run, you'll be prompted to set your ROM directory and display quality.
 
 ## Configuration
 
-Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for guided setup.
+Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for quick setup.
 
 ```json
 {
   "romDir": "/roms/nes",
   "saveDir": "/roms/nes/saves",
   "renderer": "image",
-  "pixelScale": 1.2,
+  "imageQuality": "balanced",
+  "pixelScale": 1.0,
   "keybindings": {
     "up": ["up", "w"],
     "down": ["down", "s"],
@@ -82,7 +83,8 @@ Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for guided setup.
 | `romDir` | `/roms/nes` | Where to look for ROM files |
 | `saveDir` | `/roms/nes/saves` | Where to store battery saves (defaults to `<romDir>/saves`) |
 | `renderer` | `"image"` | `"image"` (Kitty graphics) or `"text"` (ANSI) |
-| `pixelScale` | `1.2` | Display scale (0.5–4.0) |
+| `imageQuality` | `"balanced"` | `"balanced"` (30 fps, max pixel scale 1.0) or `"high"` (60 fps, max pixel scale 1.5) |
+| `pixelScale` | `1.0` | Display scale (0.5–1.0 balanced, 0.5–1.5 high) |
 
 ## Terminal Support
 

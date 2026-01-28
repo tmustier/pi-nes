@@ -70,7 +70,8 @@ pi-nes/
   - `saveDir`
   - `enableAudio`
   - `renderer` ("image" or "text")
-  - `pixelScale` (float, e.g. 1.5)
+  - `imageQuality` ("balanced" or "high")
+  - `pixelScale` (float, e.g. 1.0)
   - `keybindings` (button-to-keys map, e.g. `{ "a": ["z"] }`)
 
 Note: audio output is currently disabled; setting `enableAudio` will show a warning.
@@ -88,5 +89,6 @@ Note: audio output is currently disabled; setting `enableAudio` will show a warn
 - Audio: disabled (no safe dependency selected).
 - Default ROM dir: `/roms/nes` (configurable).
 - Default core: `native`.
-- Default pixel scale: `1.2`.
+- Default image quality: `balanced`.
+- Default pixel scale: `1.0`.
 - Default save dir: `/roms/nes/saves` (configurable).

@@ -5,12 +5,14 @@ import { DEFAULT_INPUT_MAPPING, type InputMapping } from "./input-map.js";
 import { normalizePath } from "./paths.js";
 
 export type RendererMode = "image" | "text";
+export type ImageQuality = "balanced" | "high";
 
 export interface NesConfig {
 	romDir: string;
 	saveDir: string;
 	enableAudio: boolean;
 	renderer: RendererMode;
+	imageQuality: ImageQuality;
 	pixelScale: number;
 	keybindings: InputMapping;
 }
@@ -26,7 +28,8 @@ export const DEFAULT_CONFIG: NesConfig = {
 	saveDir: getDefaultSaveDir(DEFAULT_ROM_DIR),
 	enableAudio: false,
 	renderer: "image",
-	pixelScale: 1.2,
+	imageQuality: "balanced",
+	pixelScale: 1.0,
 	keybindings: cloneMapping(DEFAULT_INPUT_MAPPING),
 };
 
@@ -35,6 +38,7 @@ interface RawConfig {
 	saveDir?: unknown;
 	enableAudio?: unknown;
 	renderer?: unknown;
+	imageQuality?: unknown;
 	pixelScale?: unknown;
 	keybindings?: unknown;
 }
@@ -54,12 +58,19 @@ export function normalizeConfig(raw: unknown): NesConfig {
 		typeof parsed.saveDir === "string" && parsed.saveDir.length > 0
 			? normalizePath(parsed.saveDir, saveDirFallback)
 			: saveDirFallback;
+	const imageQuality = normalizeImageQuality(parsed.imageQuality);
+	const maxPixelScale = imageQuality === "high" ? 1.5 : 1.0;
+	const pixelScale =
+		typeof parsed.pixelScale === "number" && !Number.isNaN(parsed.pixelScale)
+			? normalizePixelScale(parsed.pixelScale, maxPixelScale)
+			: maxPixelScale;
 	return {
 		romDir,
 		saveDir,
 		enableAudio: typeof parsed.enableAudio === "boolean" ? parsed.enableAudio : DEFAULT_CONFIG.enableAudio,
 		renderer: parsed.renderer === "text" ? "text" : DEFAULT_CONFIG.renderer,
-		pixelScale: normalizePixelScale(parsed.pixelScale),
+		imageQuality,
+		pixelScale,
 		keybindings: normalizeKeybindings(parsed.keybindings),
 	};
 }
@@ -104,11 +115,12 @@ async function ensureDirectory(dirPath: string): Promise<void> {
 	}
 }
 
-function normalizePixelScale(raw: unknown): number {
-	if (typeof raw !== "number" || Number.isNaN(raw)) {
-		return DEFAULT_CONFIG.pixelScale;
-	}
-	return Math.min(4, Math.max(0.5, raw));
+function normalizePixelScale(raw: number, maxPixelScale: number): number {
+	return Math.min(maxPixelScale, Math.max(0.5, raw));
+}
+
+function normalizeImageQuality(raw: unknown): ImageQuality {
+	return raw === "high" ? "high" : "balanced";
 }
 
 function normalizeKeybindings(raw: unknown): InputMapping {

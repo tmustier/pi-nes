@@ -18,7 +18,8 @@ import { NesSession } from "./nes-session.js";
 import { listRoms } from "./roms.js";
 import { loadSram } from "./saves.js";
 
-const IMAGE_RENDER_INTERVAL_MS = 1000 / 30;
+const IMAGE_RENDER_INTERVAL_BALANCED_MS = 1000 / 30;
+const IMAGE_RENDER_INTERVAL_HIGH_MS = 1000 / 60;
 const TEXT_RENDER_INTERVAL_MS = 1000 / 60;
 
 let activeSession: NesSession | null = null;
@@ -174,35 +175,17 @@ async function configureWithWizard(
 		}
 	}
 
-	const qualityChoice = await ctx.ui.select("Quality (pixel scale)", [
-		"Balanced (1.2) - recommended",
-		"Low (1.0) - faster",
-		"High (1.5) - sharper",
-		"Custom...",
+	const qualityChoice = await ctx.ui.select("Quality", [
+		"Balanced (recommended) — 30 fps, max pixel scale 1.0",
+		"High — 60 fps, max pixel scale 1.5",
 	]);
 	if (!qualityChoice) {
 		return false;
 	}
 
-	let pixelScale: number;
-	if (qualityChoice.startsWith("Low")) {
-		pixelScale = 1.0;
-	} else if (qualityChoice.startsWith("Balanced")) {
-		pixelScale = 1.2;
-	} else if (qualityChoice.startsWith("High")) {
-		pixelScale = 1.5;
-	} else {
-		const pixelScaleInput = await ctx.ui.input("Pixel scale (0.5 - 4)", config.pixelScale.toString());
-		if (pixelScaleInput === undefined) {
-			return false;
-		}
-		const parsed = pixelScaleInput.trim() === "" ? config.pixelScale : Number(pixelScaleInput);
-		if (Number.isNaN(parsed)) {
-			ctx.ui.notify("Pixel scale must be a number.", "error");
-			return false;
-		}
-		pixelScale = parsed;
-	}
+	const isHighQuality = qualityChoice.startsWith("High");
+	const imageQuality = isHighQuality ? "high" : "balanced";
+	const pixelScale = isHighQuality ? 1.5 : 1.0;
 
 	const defaultSaveDir = getDefaultSaveDir(config.romDir);
 	const shouldSyncSaveDir = config.saveDir === defaultSaveDir;
@@ -211,6 +194,7 @@ async function configureWithWizard(
 		...config,
 		romDir,
 		saveDir,
+		imageQuality,
 		pixelScale,
 	});
 	await saveConfig(normalized);
@@ -318,7 +302,11 @@ async function attachSession(
 				}
 			: undefined;
 
-		const renderIntervalMs = config.renderer === "image" ? IMAGE_RENDER_INTERVAL_MS : TEXT_RENDER_INTERVAL_MS;
+		const renderIntervalMs = config.renderer === "image"
+			? config.imageQuality === "high"
+				? IMAGE_RENDER_INTERVAL_HIGH_MS
+				: IMAGE_RENDER_INTERVAL_BALANCED_MS
+			: TEXT_RENDER_INTERVAL_MS;
 		session.setRenderIntervalMs(renderIntervalMs);
 
 		await ctx.ui.custom(
