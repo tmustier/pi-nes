@@ -131,21 +131,8 @@ export class NesImageRenderer {
 			return null;
 		}
 
-		const availableRows = getAvailableRows(tui, footerRows);
-		const maxRows = getMaxImageRows(tui, footerRows);
-		const cell = getCellDimensions();
-		const maxWidthByRows = Math.floor(
-			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
-		);
-		const maxWidthCells = Math.max(1, Math.min(widthCells, maxWidthByRows));
-		const maxWidthPx = Math.max(1, maxWidthCells * cell.widthPx);
-		const maxHeightPx = Math.max(1, maxRows * cell.heightPx);
-		const maxScale = Math.min(maxWidthPx / FRAME_WIDTH, maxHeightPx / FRAME_HEIGHT);
-		const requestedScale = Math.max(0.5, pixelScale) * maxScale;
-		const scale = Math.min(maxScale, requestedScale);
-		const columns = Math.max(1, Math.min(maxWidthCells, Math.floor((FRAME_WIDTH * scale) / cell.widthPx)));
-		const rows = Math.max(1, Math.min(maxRows, Math.floor((FRAME_HEIGHT * scale) / cell.heightPx)));
-		const padLeft = getHorizontalPadding(widthCells, columns);
+		const layout = computeKittyLayout(tui, widthCells, footerRows, pixelScale);
+		const { availableRows, columns, rows, padLeft } = layout;
 
 		this.fillRawBufferTarget(frameBuffer, shared.buffer);
 		const base64Name = Buffer.from(shared.name).toString("base64");
@@ -178,21 +165,8 @@ export class NesImageRenderer {
 		footerRows: number,
 		pixelScale: number,
 	): string[] {
-		const availableRows = getAvailableRows(tui, footerRows);
-		const maxRows = getMaxImageRows(tui, footerRows);
-		const cell = getCellDimensions();
-		const maxWidthByRows = Math.floor(
-			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
-		);
-		const maxWidthCells = Math.max(1, Math.min(widthCells, maxWidthByRows));
-		const maxWidthPx = Math.max(1, maxWidthCells * cell.widthPx);
-		const maxHeightPx = Math.max(1, maxRows * cell.heightPx);
-		const maxScale = Math.min(maxWidthPx / FRAME_WIDTH, maxHeightPx / FRAME_HEIGHT);
-		const requestedScale = Math.max(0.5, pixelScale) * maxScale;
-		const scale = Math.min(maxScale, requestedScale);
-		const columns = Math.max(1, Math.min(maxWidthCells, Math.floor((FRAME_WIDTH * scale) / cell.widthPx)));
-		const rows = Math.max(1, Math.min(maxRows, Math.floor((FRAME_HEIGHT * scale) / cell.heightPx)));
-		const padLeft = getHorizontalPadding(widthCells, columns);
+		const layout = computeKittyLayout(tui, widthCells, footerRows, pixelScale);
+		const { availableRows, columns, rows, padLeft } = layout;
 
 		this.fillRawBuffer(frameBuffer);
 		const fd = this.ensureRawFile();
@@ -235,23 +209,8 @@ export class NesImageRenderer {
 		footerRows: number,
 		pixelScale: number,
 	): string[] {
-		const availableRows = getAvailableRows(tui, footerRows);
-		const maxRows = getMaxImageRows(tui, footerRows);
-		const cell = getCellDimensions();
-		const maxWidthByRows = Math.floor(
-			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
-		);
-		const maxWidthCells = Math.max(1, Math.min(widthCells, maxWidthByRows));
-		const maxWidthPx = Math.max(1, maxWidthCells * cell.widthPx);
-		const maxHeightPx = Math.max(1, maxRows * cell.heightPx);
-		const scale = Math.min(
-			maxWidthPx / FRAME_WIDTH,
-			maxHeightPx / FRAME_HEIGHT,
-		) * pixelScale;
-		const targetWidth = Math.max(1, Math.floor(FRAME_WIDTH * scale));
-		const targetHeight = Math.max(1, Math.floor(FRAME_HEIGHT * scale));
-		const columns = Math.max(1, Math.min(maxWidthCells, Math.floor(targetWidth / cell.widthPx)));
-		const padLeft = getHorizontalPadding(widthCells, columns);
+		const layout = computePngLayout(tui, widthCells, footerRows, pixelScale);
+		const { availableRows, maxWidthCells, padLeft, targetHeight, targetWidth } = layout;
 
 		const hash = hashFrame(frameBuffer, targetWidth, targetHeight);
 		if (!this.cachedImage || this.lastFrameHash !== hash) {
@@ -293,28 +252,13 @@ export class NesImageRenderer {
 	}
 
 	private fillRawBufferTarget(frameBuffer: FrameBuffer, target: Uint8Array): void {
-		if (frameBuffer.format === "rgb") {
-			const source = frameBuffer.data as ReadonlyArray<number>;
-			if (source instanceof Uint8Array) {
-				target.set(source.subarray(0, RAW_FRAME_BYTES));
-				return;
-			}
-			const max = Math.min(source.length, RAW_FRAME_BYTES);
-			for (let i = 0; i < max; i += 1) {
-				target[i] = source[i] ?? 0;
-			}
+		const source = frameBuffer.data;
+		if (source.length >= RAW_FRAME_BYTES) {
+			target.set(source.subarray(0, RAW_FRAME_BYTES));
 			return;
 		}
-
-		let offset = 0;
-		const source = frameBuffer.data as ReadonlyArray<number>;
-		for (let i = 0; i < FRAME_WIDTH * FRAME_HEIGHT; i += 1) {
-			const color = source[i] ?? 0;
-			target[offset] = color & 0xff;
-			target[offset + 1] = (color >> 8) & 0xff;
-			target[offset + 2] = (color >> 16) & 0xff;
-			offset += 3;
-		}
+		target.set(source);
+		target.fill(0, source.length, RAW_FRAME_BYTES);
 	}
 
 	private getSharedMemoryModule(): KittyShmModule | null {
@@ -459,6 +403,40 @@ function getMaxImageRows(tui: TUI, footerRows: number): number {
 	return Math.max(1, Math.floor(availableRows * IMAGE_HEIGHT_RATIO));
 }
 
+function computeLayoutBase(tui: TUI, widthCells: number, footerRows: number) {
+	const availableRows = getAvailableRows(tui, footerRows);
+	const maxRows = getMaxImageRows(tui, footerRows);
+	const cell = getCellDimensions();
+	const maxWidthByRows = Math.floor(
+		(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
+	);
+	const maxWidthCells = Math.max(1, Math.min(widthCells, maxWidthByRows));
+	const maxWidthPx = Math.max(1, maxWidthCells * cell.widthPx);
+	const maxHeightPx = Math.max(1, maxRows * cell.heightPx);
+	return { availableRows, maxRows, cell, maxWidthCells, maxWidthPx, maxHeightPx };
+}
+
+function computeKittyLayout(tui: TUI, widthCells: number, footerRows: number, pixelScale: number) {
+	const base = computeLayoutBase(tui, widthCells, footerRows);
+	const maxScale = Math.min(base.maxWidthPx / FRAME_WIDTH, base.maxHeightPx / FRAME_HEIGHT);
+	const requestedScale = Math.max(0.5, pixelScale) * maxScale;
+	const scale = Math.min(maxScale, requestedScale);
+	const columns = Math.max(1, Math.min(base.maxWidthCells, Math.floor((FRAME_WIDTH * scale) / base.cell.widthPx)));
+	const rows = Math.max(1, Math.min(base.maxRows, Math.floor((FRAME_HEIGHT * scale) / base.cell.heightPx)));
+	const padLeft = getHorizontalPadding(widthCells, columns);
+	return { ...base, columns, rows, padLeft };
+}
+
+function computePngLayout(tui: TUI, widthCells: number, footerRows: number, pixelScale: number) {
+	const base = computeLayoutBase(tui, widthCells, footerRows);
+	const scale = Math.min(base.maxWidthPx / FRAME_WIDTH, base.maxHeightPx / FRAME_HEIGHT) * pixelScale;
+	const targetWidth = Math.max(1, Math.floor(FRAME_WIDTH * scale));
+	const targetHeight = Math.max(1, Math.floor(FRAME_HEIGHT * scale));
+	const columns = Math.max(1, Math.min(base.maxWidthCells, Math.floor(targetWidth / base.cell.widthPx)));
+	const padLeft = getHorizontalPadding(widthCells, columns);
+	return { ...base, targetWidth, targetHeight, padLeft };
+}
+
 function centerLines(lines: string[], totalRows: number): string[] {
 	if (lines.length >= totalRows) {
 		return lines;
@@ -495,37 +473,24 @@ function insertPaddingAfterMoveUp(line: string, padLeft: number): string {
 }
 
 function readRgb(frameBuffer: FrameBuffer, index: number): [number, number, number] {
-	if (frameBuffer.format === "rgb") {
-		const data = frameBuffer.data as ReadonlyArray<number>;
-		const base = index * 3;
-		return [data[base] ?? 0, data[base + 1] ?? 0, data[base + 2] ?? 0];
-	}
-	const data = frameBuffer.data as ReadonlyArray<number>;
-	const color = data[index] ?? 0;
-	return [color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff];
-}
-
-function readPacked(frameBuffer: FrameBuffer, index: number): number {
-	if (frameBuffer.format === "packed") {
-		const data = frameBuffer.data as ReadonlyArray<number>;
-		return data[index] ?? 0;
-	}
-	const data = frameBuffer.data as ReadonlyArray<number>;
+	const data = frameBuffer.data;
 	const base = index * 3;
-	const r = data[base] ?? 0;
-	const g = data[base + 1] ?? 0;
-	const b = data[base + 2] ?? 0;
-	return r | (g << 8) | (b << 16);
+	return [data[base] ?? 0, data[base + 1] ?? 0, data[base + 2] ?? 0];
 }
 
 function hashFrame(frameBuffer: FrameBuffer, width: number, height: number): number {
 	let hash = width ^ (height << 16);
 	const stepX = Math.max(1, Math.floor(FRAME_WIDTH / 64));
 	const stepY = Math.max(1, Math.floor(FRAME_HEIGHT / 64));
+	const data = frameBuffer.data;
 	for (let y = 0; y < FRAME_HEIGHT; y += stepY) {
 		const rowOffset = y * FRAME_WIDTH;
 		for (let x = 0; x < FRAME_WIDTH; x += stepX) {
-			const color = readPacked(frameBuffer, rowOffset + x);
+			const base = (rowOffset + x) * 3;
+			const r = data[base] ?? 0;
+			const g = data[base + 1] ?? 0;
+			const b = data[base + 2] ?? 0;
+			const color = r | (g << 8) | (b << 16);
 			hash = ((hash << 5) - hash + color) | 0;
 		}
 	}

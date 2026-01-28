@@ -11,14 +11,9 @@ const FRAME_WIDTH = 256;
 const FRAME_HEIGHT = 240;
 
 function readRgb(frameBuffer: FrameBuffer, index: number): [number, number, number] {
-	if (frameBuffer.format === "rgb") {
-		const data = frameBuffer.data as ReadonlyArray<number>;
-		const base = index * 3;
-		return [data[base] ?? 0, data[base + 1] ?? 0, data[base + 2] ?? 0];
-	}
-	const data = frameBuffer.data as ReadonlyArray<number>;
-	const color = data[index] ?? 0;
-	return [color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff];
+	const data = frameBuffer.data;
+	const base = index * 3;
+	return [data[base] ?? 0, data[base + 1] ?? 0, data[base + 2] ?? 0];
 }
 
 function renderHalfBlock(

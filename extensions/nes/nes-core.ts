@@ -4,11 +4,8 @@ const require = createRequire(import.meta.url);
 
 export type NesButton = "up" | "down" | "left" | "right" | "a" | "b" | "start" | "select";
 
-export type FrameBufferFormat = "packed" | "rgb";
-
 export interface FrameBuffer {
-	format: FrameBufferFormat;
-	data: ReadonlyArray<number> | Uint8Array;
+	data: Uint8Array;
 }
 
 export interface NesCore {
@@ -100,7 +97,7 @@ class NativeNesCore implements NesCore {
 	}
 
 	getFrameBuffer(): FrameBuffer {
-		return { format: "rgb", data: this.frameBuffer };
+		return { data: this.frameBuffer };
 	}
 
 	setButton(button: NesButton, pressed: boolean): void {
