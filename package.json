@@ -13,11 +13,6 @@
     "type": "git",
     "url": "https://github.com/tmustier/pi-nes.git"
   },
-  "files": [
-    "extensions",
-    "README.md",
-    "spec.md"
-  ],
   "dependencies": {
     "pngjs": "^7.0.0"
   },
