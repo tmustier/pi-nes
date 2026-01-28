@@ -13,6 +13,7 @@ const FRAME_HEIGHT = 240;
 const RAW_FRAME_BYTES = FRAME_WIDTH * FRAME_HEIGHT * 3;
 const FALLBACK_TMP_DIR = "/tmp";
 const SHM_DIR = "/dev/shm";
+const IMAGE_HEIGHT_RATIO = 0.9;
 
 const require = createRequire(import.meta.url);
 
@@ -130,7 +131,7 @@ export class NesImageRenderer {
 			return null;
 		}
 
-		const maxRows = Math.max(1, tui.terminal.rows - footerRows);
+		const maxRows = getMaxImageRows(tui, footerRows);
 		const cell = getCellDimensions();
 		const maxWidthByRows = Math.floor(
 			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
@@ -175,7 +176,7 @@ export class NesImageRenderer {
 		footerRows: number,
 		pixelScale: number,
 	): string[] {
-		const maxRows = Math.max(1, tui.terminal.rows - footerRows);
+		const maxRows = getMaxImageRows(tui, footerRows);
 		const cell = getCellDimensions();
 		const maxWidthByRows = Math.floor(
 			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
@@ -230,7 +231,7 @@ export class NesImageRenderer {
 		footerRows: number,
 		pixelScale: number,
 	): string[] {
-		const maxRows = Math.max(1, tui.terminal.rows - footerRows);
+		const maxRows = getMaxImageRows(tui, footerRows);
 		const cell = getCellDimensions();
 		const maxWidthByRows = Math.floor(
 			(maxRows * cell.heightPx * FRAME_WIDTH) / (FRAME_HEIGHT * cell.widthPx),
@@ -440,6 +441,11 @@ function resolveRawDir(): string {
 		}
 	}
 	return os.tmpdir();
+}
+
+function getMaxImageRows(tui: TUI, footerRows: number): number {
+	const availableRows = Math.max(1, tui.terminal.rows - footerRows);
+	return Math.max(1, Math.floor(availableRows * IMAGE_HEIGHT_RATIO));
 }
 
 function readRgb(frameBuffer: FrameBuffer, index: number): [number, number, number] {
