@@ -157,12 +157,13 @@ export class NesImageRenderer {
 		});
 
 		const lines: string[] = [];
-		this.rawVersion += 1;
-		const marker = `\x1b_pi:nes:${this.rawVersion}\x07`;
-		lines.push(`${sequence}${marker}`);
 		for (let i = 0; i < rows - 1; i += 1) {
 			lines.push("");
 		}
+		const moveUp = rows > 1 ? `\x1b[${rows - 1}A` : "";
+		this.rawVersion += 1;
+		const marker = `\x1b_pi:nes:${this.rawVersion}\x07`;
+		lines.push(`${moveUp}${sequence}${marker}`);
 
 		return lines;
 	}
@@ -211,12 +212,13 @@ export class NesImageRenderer {
 		}
 
 		const lines: string[] = [];
-		this.rawVersion += 1;
-		const marker = `\x1b_pi:nes:${this.rawVersion}\x07`;
-		lines.push(`${cached.sequence}${marker}`);
 		for (let i = 0; i < rows - 1; i += 1) {
 			lines.push("");
 		}
+		const moveUp = rows > 1 ? `\x1b[${rows - 1}A` : "";
+		this.rawVersion += 1;
+		const marker = `\x1b_pi:nes:${this.rawVersion}\x07`;
+		lines.push(`${moveUp}${cached.sequence}${marker}`);
 
 		return lines;
 	}
