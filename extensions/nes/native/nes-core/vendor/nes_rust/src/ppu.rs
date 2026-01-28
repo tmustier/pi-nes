@@ -1365,14 +1365,18 @@ impl Sprite {
 	}
 
 	fn on(&self, y: u8, height: u8) -> bool {
-		(y >= self.get_y()) && (y < self.get_y() + height)
+		let sprite_y = self.get_y() as u16 + 1;
+		let y = y as u16;
+		y >= sprite_y && y < sprite_y + height as u16
 	}
 
 	fn get_y_in_sprite(&self, y: u8, height: u8) -> u8 {
 		// Assumes self.on(y, height) is true
+		let sprite_y = self.get_y() as u16 + 1;
+		let delta = (y as u16 - sprite_y) as u8;
 		match self.vertical_flip() {
-			true => height - 1 - (y - self.get_y()),
-			false => y - self.get_y()
+			true => height - 1 - delta,
+			false => delta
 		}
 	}
 }

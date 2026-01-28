@@ -20,9 +20,15 @@ impl Rom {
 	pub fn new(data: Vec<u8>) -> Self {
 		let header = RomHeader::new(data[0..HEADER_SIZE].to_vec());
 		let mapper = MapperFactory::create(&header);
+		let data_start = HEADER_SIZE + if header.has_trainer() { 512 } else { 0 };
+		let rom_data = if data.len() > data_start {
+			data[data_start..].to_vec()
+		} else {
+			Vec::new()
+		};
 		Rom {
 			header: header,
-			memory: Memory::new(data[HEADER_SIZE..].to_vec()),
+			memory: Memory::new(rom_data),
 			mapper: mapper
 		}
 	}
@@ -180,8 +186,8 @@ impl RomHeader {
 		self.extract_bits(self.control_byte1(), 1, 1) == 1
 	}
 
-	fn _trainer_512_bytes(&self) -> u8 {
-		self.extract_bits(self.control_byte1(), 2, 1)
+	pub fn has_trainer(&self) -> bool {
+		self.extract_bits(self.control_byte1(), 2, 1) == 1
 	}
 
 	fn four_screen_mirroring(&self) -> bool {

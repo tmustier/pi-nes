@@ -118,14 +118,14 @@ impl Mapper for MMC1Mapper {
 	fn map(&self, address: u32) -> u32 {
 		let bank: u32;
 		let mut offset = address & 0x3FFF;
-		let bank_num = self.prg_bank_register.load() as u32 & 0x0F;
+		let bank_num = self.prg_bank_register.load() as u32 & 0x1F;
 
 		match self.control_register.load_bits(2, 2) {
 			0 | 1 => {
 				// switch 32KB at 0x8000, ignoring low bit of bank number
 				// TODO: Fix me
 				offset = offset | (address & 0x4000);
-				bank = bank_num & 0x0E;
+				bank = bank_num & 0x1E;
 			},
 			2 => {
 				// fix first bank at 0x8000 and switch 16KB bank at 0xC000
