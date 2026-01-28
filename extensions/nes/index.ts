@@ -175,8 +175,8 @@ async function configureWithWizard(
 	}
 
 	const qualityChoice = await ctx.ui.select("Quality (pixel scale)", [
-		"Low (1.0) - faster",
 		"Balanced (1.2) - recommended",
+		"Low (1.0) - faster",
 		"High (1.5) - sharper",
 		"Custom...",
 	]);
@@ -225,18 +225,18 @@ async function editConfig(ctx: ExtensionCommandContext): Promise<void> {
 	}
 	const config = await loadConfig();
 	const choice = await ctx.ui.select("NES configuration", [
-		"Guided setup",
-		"Edit JSON",
+		"Quick setup",
+		"Advanced (edit config JSON)",
 		"Reset to defaults",
 	]);
 	if (!choice) {
 		return;
 	}
-	if (choice === "Guided setup") {
+	if (choice === "Quick setup") {
 		await configureWithWizard(ctx, config);
 		return;
 	}
-	if (choice === "Edit JSON") {
+	if (choice === "Advanced (edit config JSON)") {
 		await editConfigJson(ctx, config);
 		return;
 	}
