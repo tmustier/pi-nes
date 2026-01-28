@@ -289,18 +289,16 @@ async function attachSession(
 ): Promise<boolean> {
 	let shouldStop = false;
 	try {
-		const useOverlay = config.renderer !== "image";
-		const overlayOptions = useOverlay
-			? {
-					overlay: true,
-					overlayOptions: {
-						width: "85%",
-						maxHeight: "90%",
-						anchor: "center",
-						margin: { top: 1 },
-					},
-				}
-			: undefined;
+		const isImageRenderer = config.renderer === "image";
+		const overlayOptions = {
+			overlay: true,
+			overlayOptions: {
+				width: isImageRenderer ? "90%" : "85%",
+				maxHeight: "90%",
+				anchor: "center",
+				margin: { top: 1 },
+			},
+		};
 
 		const renderIntervalMs = config.renderer === "image"
 			? config.imageQuality === "high"
@@ -323,6 +321,7 @@ async function attachSession(
 					config.keybindings,
 					config.renderer,
 					config.pixelScale,
+					isImageRenderer,
 					debug,
 					() => session.getStats(),
 					"native",

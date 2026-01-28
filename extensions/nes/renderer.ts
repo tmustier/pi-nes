@@ -68,17 +68,18 @@ export class NesImageRenderer {
 		widthCells: number,
 		footerRows = 1,
 		pixelScale = 1,
+		padToHeight = true,
 	): string[] {
 		const caps = getCapabilities();
 		if (caps.images === "kitty") {
-			const shared = this.renderKittySharedMemory(frameBuffer, tui, widthCells, footerRows, pixelScale);
+			const shared = this.renderKittySharedMemory(frameBuffer, tui, widthCells, footerRows, pixelScale, padToHeight);
 			if (shared) {
 				return shared;
 			}
-			return this.renderKittyRaw(frameBuffer, tui, widthCells, footerRows, pixelScale);
+			return this.renderKittyRaw(frameBuffer, tui, widthCells, footerRows, pixelScale, padToHeight);
 		}
 
-		return this.renderPng(frameBuffer, tui, widthCells, footerRows, pixelScale);
+		return this.renderPng(frameBuffer, tui, widthCells, footerRows, pixelScale, padToHeight);
 	}
 
 	dispose(tui: TUI): void {
@@ -121,6 +122,7 @@ export class NesImageRenderer {
 		widthCells: number,
 		footerRows: number,
 		pixelScale: number,
+		padToHeight: boolean,
 	): string[] | null {
 		const module = this.getSharedMemoryModule();
 		if (!module) {
@@ -155,7 +157,8 @@ export class NesImageRenderer {
 		const marker = `\x1b_pi:nes:${this.rawVersion}\x07`;
 		lines.push(`${moveUp}${sequence}${marker}`);
 
-		return centerLines(applyHorizontalPadding(lines, padLeft), availableRows);
+		const padded = applyHorizontalPadding(lines, padLeft);
+		return padToHeight ? centerLines(padded, availableRows) : padded;
 	}
 
 	private renderKittyRaw(
@@ -164,6 +167,7 @@ export class NesImageRenderer {
 		widthCells: number,
 		footerRows: number,
 		pixelScale: number,
+		padToHeight: boolean,
 	): string[] {
 		const layout = computeKittyLayout(tui, widthCells, footerRows, pixelScale);
 		const { availableRows, columns, rows, padLeft } = layout;
@@ -199,7 +203,8 @@ export class NesImageRenderer {
 		const marker = `\x1b_pi:nes:${this.rawVersion}\x07`;
 		lines.push(`${moveUp}${cached.sequence}${marker}`);
 
-		return centerLines(applyHorizontalPadding(lines, padLeft), availableRows);
+		const padded = applyHorizontalPadding(lines, padLeft);
+		return padToHeight ? centerLines(padded, availableRows) : padded;
 	}
 
 	private renderPng(
@@ -208,6 +213,7 @@ export class NesImageRenderer {
 		widthCells: number,
 		footerRows: number,
 		pixelScale: number,
+		padToHeight: boolean,
 	): string[] {
 		const layout = computePngLayout(tui, widthCells, footerRows, pixelScale);
 		const { availableRows, maxWidthCells, padLeft, targetHeight, targetWidth } = layout;
@@ -244,7 +250,8 @@ export class NesImageRenderer {
 			{ widthPx: this.cachedImage.width, heightPx: this.cachedImage.height },
 		);
 
-		return centerLines(applyHorizontalPadding(image.render(widthCells), padLeft), availableRows);
+		const padded = applyHorizontalPadding(image.render(widthCells), padLeft);
+		return padToHeight ? centerLines(padded, availableRows) : padded;
 	}
 
 	private fillRawBuffer(frameBuffer: FrameBuffer): void {

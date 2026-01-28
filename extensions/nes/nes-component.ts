@@ -84,6 +84,7 @@ export class NesOverlayComponent implements Component {
 	private readonly imageRenderer = new NesImageRenderer();
 	private readonly rendererMode: RendererMode;
 	private readonly pixelScale: number;
+	private readonly windowed: boolean;
 	private readonly debug: boolean;
 	private readonly statsProvider?: () => NesSessionStats;
 	private readonly debugLabel?: string;
@@ -97,6 +98,7 @@ export class NesOverlayComponent implements Component {
 		inputMapping: InputMapping = DEFAULT_INPUT_MAPPING,
 		rendererMode: RendererMode = "image",
 		pixelScale = 1,
+		windowed = false,
 		debug = false,
 		statsProvider?: () => NesSessionStats,
 		debugLabel?: string,
@@ -104,6 +106,7 @@ export class NesOverlayComponent implements Component {
 		this.inputMapping = inputMapping;
 		this.rendererMode = rendererMode;
 		this.pixelScale = pixelScale;
+		this.windowed = windowed;
 		this.debug = debug;
 		this.statsProvider = statsProvider;
 		this.debugLabel = debugLabel;
@@ -154,6 +157,7 @@ export class NesOverlayComponent implements Component {
 				width,
 				footerRows,
 				this.pixelScale,
+				!this.windowed,
 			);
 			if (debugLine) {
 				lines.push(truncateToWidth(debugLine, width));
