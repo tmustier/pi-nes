@@ -86,9 +86,9 @@ Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for guided setup.
 
 ## Terminal Support
 
-**Best experience:** [Kitty](https://sw.kovidgoyal.net/kitty/) terminal with image protocol support.
+**Best experience:** a Kitty-protocol terminal like Ghostty, Kitty, or WezTerm (image protocol + key-up events).
 
-- **Kitty** — Full graphics via image protocol (shared memory or file transport)
+- **Kitty-protocol terminals** — Full graphics via image protocol (shared memory or file transport)
 - **Other terminals** — Falls back to ANSI half-block characters (`▀▄`)
 
 Set `"renderer": "text"` if you prefer the ANSI renderer or have display issues.
