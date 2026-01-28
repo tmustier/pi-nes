@@ -1,5 +1,4 @@
 import { promises as fs } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { NesOverlayComponent } from "./nes-component.js";
@@ -13,6 +12,7 @@ import {
 	normalizeConfig,
 	saveConfig,
 } from "./config.js";
+import { displayPath, resolvePathInput } from "./paths.js";
 import { NesSession } from "./nes-session.js";
 import { listRoms } from "./roms.js";
 import { loadSram } from "./saves.js";
@@ -75,26 +75,6 @@ function parseArgs(args?: string): { debug: boolean; romArg?: string } {
 		return { debug: true, romArg: trimmed.slice(7).trim() || undefined };
 	}
 	return { debug: false, romArg: trimmed };
-}
-
-function displayPath(value: string): string {
-	const home = os.homedir();
-	if (value.startsWith(home)) {
-		return `~${value.slice(home.length)}`;
-	}
-	return value;
-}
-
-function resolvePathInput(input: string, cwd: string): string {
-	if (input.startsWith("~")) {
-		const trimmed = input.slice(1);
-		const suffix = trimmed.startsWith(path.sep) ? trimmed.slice(1) : trimmed;
-		return path.join(os.homedir(), suffix);
-	}
-	if (path.isAbsolute(input)) {
-		return input;
-	}
-	return path.resolve(cwd, input);
 }
 
 async function ensureRomDir(pathValue: string, ctx: ExtensionCommandContext): Promise<boolean> {

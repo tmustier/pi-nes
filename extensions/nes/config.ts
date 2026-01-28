@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { DEFAULT_INPUT_MAPPING, type InputMapping } from "./input-map.js";
+import { normalizePath } from "./paths.js";
 
 export type RendererMode = "image" | "text";
 
@@ -88,24 +89,6 @@ function normalizePixelScale(raw: unknown): number {
 		return DEFAULT_CONFIG.pixelScale;
 	}
 	return Math.min(4, Math.max(0.5, raw));
-}
-
-function normalizePath(value: string, fallback: string): string {
-	const trimmed = value.trim();
-	if (!trimmed) {
-		return fallback;
-	}
-	return expandHomePath(trimmed);
-}
-
-function expandHomePath(value: string): string {
-	if (value === "~") {
-		return os.homedir();
-	}
-	if (value.startsWith("~/") || value.startsWith("~\\")) {
-		return path.join(os.homedir(), value.slice(2));
-	}
-	return value;
 }
 
 function normalizeKeybindings(raw: unknown): InputMapping {
