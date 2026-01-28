@@ -31,7 +31,7 @@ async function selectRom(
 ): Promise<string | null> {
 	const trimmed = args?.trim();
 	if (trimmed) {
-		return path.isAbsolute(trimmed) ? trimmed : path.resolve(cwd, trimmed);
+		return resolvePathInput(trimmed, cwd);
 	}
 
 	try {
