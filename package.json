@@ -1,8 +1,13 @@
 {
   "name": "pi-nes",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "NES emulator extension for pi",
-  "keywords": ["pi-package", "pi", "nes", "emulator"],
+  "keywords": [
+    "pi-package",
+    "pi",
+    "nes",
+    "emulator"
+  ],
   "type": "module",
   "repository": {
     "type": "git",
@@ -21,6 +26,8 @@
     "@mariozechner/pi-tui": "*"
   },
   "pi": {
-    "extensions": ["./extensions/nes"]
+    "extensions": [
+      "./extensions/nes"
+    ]
   }
 }
