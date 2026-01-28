@@ -4,13 +4,11 @@ import path from "node:path";
 import { DEFAULT_INPUT_MAPPING, type InputMapping } from "./input-map.js";
 
 export type RendererMode = "image" | "text";
-export type NesCoreType = "jsnes" | "wasm" | "native";
 
 export interface NesConfig {
 	romDir: string;
 	saveDir: string;
 	enableAudio: boolean;
-	core: NesCoreType;
 	renderer: RendererMode;
 	pixelScale: number;
 	keybindings: InputMapping;
@@ -20,7 +18,6 @@ export const DEFAULT_CONFIG: NesConfig = {
 	romDir: path.join(path.sep, "roms", "nes"),
 	saveDir: path.join(os.homedir(), ".pi", "nes", "saves"),
 	enableAudio: false,
-	core: "native",
 	renderer: "image",
 	pixelScale: 1.2,
 	keybindings: cloneMapping(DEFAULT_INPUT_MAPPING),
@@ -30,7 +27,6 @@ interface RawConfig {
 	romDir?: unknown;
 	saveDir?: unknown;
 	enableAudio?: unknown;
-	core?: unknown;
 	renderer?: unknown;
 	pixelScale?: unknown;
 	keybindings?: unknown;
@@ -47,12 +43,6 @@ export function normalizeConfig(raw: unknown): NesConfig {
 		saveDir:
 			typeof parsed.saveDir === "string" && parsed.saveDir.length > 0 ? parsed.saveDir : DEFAULT_CONFIG.saveDir,
 		enableAudio: typeof parsed.enableAudio === "boolean" ? parsed.enableAudio : DEFAULT_CONFIG.enableAudio,
-		core:
-			parsed.core === "native"
-				? "native"
-				: parsed.core === "wasm"
-					? "wasm"
-					: DEFAULT_CONFIG.core,
 		renderer: parsed.renderer === "text" ? "text" : DEFAULT_CONFIG.renderer,
 		pixelScale: normalizePixelScale(parsed.pixelScale),
 		keybindings: normalizeKeybindings(parsed.keybindings),

@@ -14,8 +14,6 @@
     "spec.md"
   ],
   "dependencies": {
-    "jsnes": "^1.2.1",
-    "nes_rust_wasm": "^0.1.2",
     "pngjs": "^7.0.0"
   },
   "peerDependencies": {

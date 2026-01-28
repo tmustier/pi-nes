@@ -264,16 +264,14 @@ async function createSession(romPath: string, ctx: ExtensionCommandContext, conf
 
 	let core;
 	try {
-		core = createNesCore({ enableAudio: config.enableAudio, core: config.core });
+		core = createNesCore({ enableAudio: config.enableAudio });
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		ctx.ui.notify(`Failed to initialize NES core: ${message}`, "error");
-		if (config.core === "native") {
-			ctx.ui.notify(
-				"Build native core: cd ~/Projects/pi-nes/extensions/nes/native/nes-core && npm install && npm run build",
-				"warning",
-			);
-		}
+		ctx.ui.notify(
+			"Build native core: cd ~/Projects/pi-nes/extensions/nes/native/nes-core && npm install && npm run build",
+			"warning",
+		);
 		return null;
 	}
 	try {
@@ -287,9 +285,6 @@ async function createSession(romPath: string, ctx: ExtensionCommandContext, conf
 	const audioWarning = core.getAudioWarning();
 	if (audioWarning) {
 		ctx.ui.notify(audioWarning, "warning");
-	}
-	if (config.core === "wasm") {
-		ctx.ui.notify("WASM core does not support battery saves yet; in-game saves won't persist.", "warning");
 	}
 
 	const savedSram = await loadSram(config.saveDir, romPath);
@@ -346,7 +341,7 @@ async function attachSession(
 					config.pixelScale,
 					debug,
 					() => session.getStats(),
-					config.core,
+					"native",
 				);
 			},
 			overlayOptions,
