@@ -143,8 +143,8 @@ async function configureWithWizard(
 	const romDirDisplay = displayPath(config.romDir);
 	const romDirDefaultLabel = config.romDir === DEFAULT_CONFIG.romDir ? "Use default" : "Use current";
 	const romDirOptions = [
-		`${romDirDefaultLabel} (${romDirDisplay})`,
-		"Enter a custom path",
+		`${romDirDefaultLabel} (${romDirDisplay}) — creates if missing`,
+		"Enter a custom path (must exist)",
 	];
 	const romDirChoice = await ctx.ui.select("ROM directory", romDirOptions);
 	if (!romDirChoice) {
@@ -153,7 +153,7 @@ async function configureWithWizard(
 
 	let romDir = config.romDir;
 	if (romDirChoice === romDirOptions[1]) {
-		const romDirInput = await ctx.ui.input("ROM directory", romDirDisplay);
+		const romDirInput = await ctx.ui.input("ROM directory (must exist)", romDirDisplay);
 		if (romDirInput === undefined) {
 			return false;
 		}
