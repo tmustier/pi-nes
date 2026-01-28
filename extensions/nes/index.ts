@@ -262,7 +262,20 @@ async function createSession(romPath: string, ctx: ExtensionCommandContext, conf
 		return null;
 	}
 
-	const core = createNesCore({ enableAudio: config.enableAudio, core: config.core });
+	let core;
+	try {
+		core = createNesCore({ enableAudio: config.enableAudio, core: config.core });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		ctx.ui.notify(`Failed to initialize NES core: ${message}`, "error");
+		if (config.core === "native") {
+			ctx.ui.notify(
+				"Build native core: cd ~/Projects/pi-nes/extensions/nes/native/nes-core && npm install && npm run build",
+				"warning",
+			);
+		}
+		return null;
+	}
 	try {
 		core.loadRom(romData);
 	} catch {

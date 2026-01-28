@@ -361,11 +361,7 @@ class WasmNesCore implements NesCore {
 export function createNesCore(options: CreateNesCoreOptions = {}): NesCore {
 	const core = options.core ?? "jsnes";
 	if (core === "native") {
-		try {
-			return new NativeNesCore(options.enableAudio ?? false);
-		} catch {
-			return new JsnesCore(options.enableAudio ?? false);
-		}
+		return new NativeNesCore(options.enableAudio ?? false);
 	}
 	if (core === "wasm") {
 		return new WasmNesCore(options.enableAudio ?? false);

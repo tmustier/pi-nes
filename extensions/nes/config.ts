@@ -20,7 +20,7 @@ export const DEFAULT_CONFIG: NesConfig = {
 	romDir: path.join(path.sep, "roms", "nes"),
 	saveDir: path.join(os.homedir(), ".pi", "nes", "saves"),
 	enableAudio: false,
-	core: "jsnes",
+	core: "native",
 	renderer: "image",
 	pixelScale: 1.2,
 	keybindings: cloneMapping(DEFAULT_INPUT_MAPPING),

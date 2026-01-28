@@ -92,7 +92,9 @@ Note: audio output is currently disabled; setting `enableAudio` will show a warn
 6. Optional: audio + performance tuning
 
 ## Decisions
-- Core: jsnes (default) with mapper 0/1/2/3/4 coverage; optional nes_rust_wasm for performance (no SRAM persistence).
+- Core: native (default) via nes_rust; jsnes/nes_rust_wasm remain available but are not surfaced in the guided setup.
 - Audio: disabled (no safe dependency selected).
 - Default ROM dir: `/roms/nes` (configurable).
+- Default core: `native`.
+- Default pixel scale: `1.2`.
 - Default save dir: `~/.pi/nes/saves` (configurable).
