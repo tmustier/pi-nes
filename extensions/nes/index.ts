@@ -8,6 +8,7 @@ import {
 	configExists,
 	formatConfig,
 	getConfigPath,
+	getDefaultSaveDir,
 	loadConfig,
 	normalizeConfig,
 	saveConfig,
@@ -139,17 +140,28 @@ async function configureWithWizard(
 	ctx: ExtensionCommandContext,
 	config: Awaited<ReturnType<typeof loadConfig>>,
 ): Promise<boolean> {
-	const romDirPlaceholder = displayPath(config.romDir);
-	const romDirInput = await ctx.ui.input(
-		"ROM directory (or wherever you want to keep your roms)",
-		romDirPlaceholder,
-	);
-	if (romDirInput === undefined) {
+	const romDirDisplay = displayPath(config.romDir);
+	const romDirDefaultLabel = config.romDir === DEFAULT_CONFIG.romDir ? "Use default" : "Use current";
+	const romDirOptions = [
+		`${romDirDefaultLabel} (${romDirDisplay})`,
+		"Enter a custom path",
+	];
+	const romDirChoice = await ctx.ui.select("ROM directory", romDirOptions);
+	if (!romDirChoice) {
 		return false;
 	}
-	const trimmedRomDir = romDirInput.trim();
+
 	let romDir = config.romDir;
-	if (trimmedRomDir) {
+	if (romDirChoice === romDirOptions[1]) {
+		const romDirInput = await ctx.ui.input("ROM directory", romDirDisplay);
+		if (romDirInput === undefined) {
+			return false;
+		}
+		const trimmedRomDir = romDirInput.trim();
+		if (!trimmedRomDir) {
+			ctx.ui.notify("ROM directory cannot be empty.", "error");
+			return false;
+		}
 		romDir = resolvePathInput(trimmedRomDir, ctx.cwd);
 		const valid = await validateRomDir(romDir, ctx);
 		if (!valid) {
@@ -192,9 +204,13 @@ async function configureWithWizard(
 		pixelScale = parsed;
 	}
 
+	const defaultSaveDir = getDefaultSaveDir(config.romDir);
+	const shouldSyncSaveDir = config.saveDir === defaultSaveDir;
+	const saveDir = shouldSyncSaveDir ? getDefaultSaveDir(romDir) : config.saveDir;
 	const normalized = normalizeConfig({
 		...config,
 		romDir,
+		saveDir,
 		pixelScale,
 	});
 	await saveConfig(normalized);

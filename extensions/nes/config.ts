@@ -17,13 +17,13 @@ export interface NesConfig {
 
 const DEFAULT_ROM_DIR = path.join(path.sep, "roms", "nes");
 
-function defaultSaveDir(romDir: string): string {
+export function getDefaultSaveDir(romDir: string): string {
 	return path.join(romDir, "saves");
 }
 
 export const DEFAULT_CONFIG: NesConfig = {
 	romDir: DEFAULT_ROM_DIR,
-	saveDir: defaultSaveDir(DEFAULT_ROM_DIR),
+	saveDir: getDefaultSaveDir(DEFAULT_ROM_DIR),
 	enableAudio: false,
 	renderer: "image",
 	pixelScale: 1.2,
@@ -49,7 +49,7 @@ export function normalizeConfig(raw: unknown): NesConfig {
 		typeof parsed.romDir === "string" && parsed.romDir.length > 0
 			? normalizePath(parsed.romDir, DEFAULT_CONFIG.romDir)
 			: DEFAULT_CONFIG.romDir;
-	const saveDirFallback = defaultSaveDir(romDir);
+	const saveDirFallback = getDefaultSaveDir(romDir);
 	const saveDir =
 		typeof parsed.saveDir === "string" && parsed.saveDir.length > 0
 			? normalizePath(parsed.saveDir, saveDirFallback)
