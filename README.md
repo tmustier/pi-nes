@@ -63,7 +63,6 @@ Example:
   "romDir": "/roms/nes",
   "saveDir": "/Users/you/.pi/nes/saves",
   "enableAudio": false,
-  "core": "native",
   "renderer": "image",
   "pixelScale": 1.2,
   "keybindings": {
@@ -81,9 +80,7 @@ Example:
 
 ## Core
 
-- `core: "native"` (default) uses the Rust core (no SRAM persistence yet). Requires building the native addon.
-- `core: "jsnes"` supports battery-backed SRAM saves.
-- `core: "wasm"` is faster but **does not persist battery saves yet**.
+The extension uses the **native Rust core** only (required build step). Battery-backed SRAM persistence for native is tracked in issue #3.
 
 ## Rendering
 

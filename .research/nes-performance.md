@@ -25,10 +25,26 @@ Improve emulation speed and reduce stutter while keeping high‑resolution rende
 - **Change:** Optional WASM core.
 - **Result:** Core faster but still limited by render transport; SRAM persistence not supported in this core yet.
 
+### 6) Native core + zero-copy framebuffer (nes_rust via napi-rs)
+- **Change:** Native Rust core with a custom display implementation, plus `refreshFramebuffer()` to update a persistent external `Uint8Array` (zero-copy).
+- **Result:** CPU overhead and GC pressure reduced; smoother long sessions.
+- **Notes:** Fixed an out-of-bounds panic in the display path and corrected RGB channel order (palette values are BGR).
+
+### 7) Kitty shared-memory renderer (`t=s`)
+- **Change:** POSIX shared memory (`shm_open` + `mmap`) via napi-rs addon, per-frame handles due to Kitty unlinking shared memory after read.
+- **Result:** Much smaller escape payloads and lower JS overhead.
+- **Fixes:** Reused Kitty placement (`p=1`) to avoid placement buildup, and switched to an APC marker for TUI diffs (prevents cursor/footers from drifting).
+
+### 8) Observability + config tuning
+- **Change:** `/nes debug` overlay with FPS, frames/tick, dropped frames, catch-up, event-loop delay, and memory (heap/rss/external/arrayBuffers).
+- **Result:** JS metrics stayed healthy even when the OS felt sluggish, pointing to compositor/Kitty pressure rather than JS stalls.
+- **Config:** Guided setup now prompts only for ROM dir + quality presets (low/balanced/high/custom). Default pixel scale bumped to **1.2** and ROM dir to **/roms/nes**.
+
 ## Findings
-- Primary bottleneck is **render transport**, not the emulator core.
+- Primary bottleneck is **render transport + terminal compositor**, not the emulator core. JS metrics can look normal while the OS feels sluggish.
 - Large **base64 graphics payloads** stall the event loop and throttle emulation.
-- TUI diffing requires the image line to change each frame; raw images with constant escape sequences won’t re‑render without an injected marker.
+- Kitty placement buildup can degrade performance over time; reusing a fixed placement (`p=1`) prevents this.
+- TUI diffing requires the image line to change each frame; use a non‑printing APC marker to force re-render without moving the cursor.
 
 ## External Research (What Others Do)
 - **Kitty graphics protocol** explicitly supports *file* and *shared memory* transports (`t=f` and `t=s`) to avoid base64 payloads. Shared memory is the fastest local option. ([Kitty docs](https://sw.kovidgoyal.net/kitty/graphics-protocol/#the-transmission-medium))
@@ -37,30 +53,31 @@ Improve emulation speed and reduce stutter while keeping high‑resolution rende
 - **Ghostty discussion** notes that the fastest option is shared memory and that **mpv uses shared memory** for Kitty graphics. ([Ghostty discussion](https://github.com/ghostty-org/ghostty/discussions/5350))
 - **Foot issue** notes shared memory avoids chunking/base64 and improves local performance. ([foot issue #481](https://codeberg.org/dnkl/foot/issues/481))
 
-## New Approach (Current Plan)
+## Current Approach (Implemented)
 
-### ✅ Step 1: Kitty file transport for raw RGB frames (implemented)
+### Kitty file transport (fallback)
 - Write raw RGB bytes to a temp file.
 - Use Kitty graphics protocol with `t=f` (file) and `f=24` (RGB).
 - Send only a **small escape sequence** with base64 file path.
 - Inject a frame marker so TUI re-renders the image line.
 
-### ⚠️ Current Result
-- Still seeing stalls. Likely due to **sync file writes each frame** and JS thread contention.
-
-### ✅ Node Native + Shared Memory (implemented)
+### Kitty shared memory transport (preferred)
 1) **Native addon (Rust + napi-rs)** creates POSIX shared memory (`shm_open` + `ftruncate` + `mmap`).
 2) Exposes a **zero‑copy `Uint8Array`** backed by mapped memory for RGB frames.
 3) Emits Kitty `t=s` escape sequences referencing the shared memory name.
-4) Falls back to `t=f`/PNG if the addon isn’t available.
+4) Reuses image placement (`p=1`) to prevent placement buildup.
 
 **Important:** Kitty unlinks the shared memory object after each transfer, so we create a new shared memory handle per frame and release older ones after a short delay.
 
-### Future Options
-- Move the **NES core into native** (Rust `nes-rust`) to avoid JS pixel conversion.
-- Worker thread + shared buffers for JS/WASM if native core isn’t used.
-- SRAM persistence support in the WASM/native core.
+### Native core + zero-copy framebuffer
+- Rust core (`nes_rust`) via napi-rs, updating an external `Uint8Array` each frame.
+- Avoids JS framebuffer repacking and reduces GC pressure.
+
+## Remaining TODOs
+- Battery-backed SRAM persistence in the native core (issue #3).
+- Reduce shared-memory churn if Kitty ever supports persistent buffers.
 
 ## Notes
 - Image mode runs full‑screen (no overlay) to avoid sequence truncation.
-- Render FPS can be increased now that file transport is in place.
+- Pixel scale **1.2** is the new default; lowering it reduces compositor load.
+- Debug overlay shows tick/render FPS, frames/tick, dropped frames, event-loop delay, and memory.
