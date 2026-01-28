@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 libc = "0.2"
-nes_rust = "0.1.2"
+nes_rust = { path = "vendor/nes_rust" }
 napi = { version = "2", features = ["napi8"] }
 napi-derive = "2"
 

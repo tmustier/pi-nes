@@ -1,0 +1,21 @@
+[package]
+name = "nes_rust"
+version = "0.1.2"
+description = "NES emulator written in Rust"
+authors = ["Takahiro <hogehoge@gachapin.jp>"]
+license = "MIT"
+homepage = "https://github.com/takahirox/nes-rust"
+repository = "https://github.com/takahirox/nes-rust"
+exclude = [
+  "resources/*",
+  "screenshots/*",
+  "roms/*",
+  "cli/*",
+  "wasm/*"
+]
+
+[workspace]
+members = [".", "cli", "wasm"]
+
+[badges]
+travis-ci = {repository = "takahirox/nes-rust"}

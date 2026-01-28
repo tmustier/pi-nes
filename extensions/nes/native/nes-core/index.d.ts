@@ -9,6 +9,11 @@ export class NativeNes {
   reset(): void;
   pressButton(button: number): void;
   releaseButton(button: number): void;
+  hasBatteryBackedRam(): boolean;
+  getSram(): Uint8Array;
+  setSram(data: Uint8Array): void;
+  isSramDirty(): boolean;
+  markSramSaved(): void;
   getFramebuffer(): Uint8Array;
 }
 

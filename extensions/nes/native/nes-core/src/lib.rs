@@ -109,6 +109,31 @@ impl NativeNes {
 	}
 
 	#[napi]
+	pub fn has_battery_backed_ram(&self) -> bool {
+		self.nes.has_battery_backed_ram()
+	}
+
+	#[napi]
+	pub fn get_sram(&self) -> Uint8Array {
+		Uint8Array::from(self.nes.get_sram())
+	}
+
+	#[napi]
+	pub fn set_sram(&mut self, data: Uint8Array) {
+		self.nes.set_sram(data.to_vec());
+	}
+
+	#[napi]
+	pub fn is_sram_dirty(&self) -> bool {
+		self.nes.is_sram_dirty()
+	}
+
+	#[napi]
+	pub fn mark_sram_saved(&mut self) {
+		self.nes.mark_sram_saved();
+	}
+
+	#[napi]
 	pub fn get_framebuffer(&mut self) -> Uint8Array {
 		let ptr = self.framebuffer.as_mut_ptr();
 		let len = self.framebuffer.len();

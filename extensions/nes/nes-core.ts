@@ -34,6 +34,11 @@ interface NativeNesInstance {
 	reset(): void;
 	pressButton(button: number): void;
 	releaseButton(button: number): void;
+	hasBatteryBackedRam(): boolean;
+	getSram(): Uint8Array;
+	setSram(data: Uint8Array): void;
+	isSramDirty(): boolean;
+	markSramSaved(): void;
 	getFramebuffer(): Uint8Array;
 }
 
@@ -73,6 +78,7 @@ class NativeNesCore implements NesCore {
 	private readonly nes: NativeNesInstance;
 	private readonly audioWarning: string | null;
 	private readonly frameBuffer: Uint8Array;
+	private hasSram = false;
 
 	constructor(enableAudio: boolean) {
 		this.audioWarning = enableAudio
@@ -88,6 +94,7 @@ class NativeNesCore implements NesCore {
 
 	loadRom(rom: Uint8Array): void {
 		this.nes.setRom(rom);
+		this.hasSram = this.nes.hasBatteryBackedRam();
 		this.nes.bootup();
 	}
 
@@ -110,16 +117,32 @@ class NativeNesCore implements NesCore {
 	}
 
 	getSram(): Uint8Array | null {
-		return null;
+		if (!this.hasSram) {
+			return null;
+		}
+		return this.nes.getSram();
 	}
 
-	setSram(_sram: Uint8Array): void {}
+	setSram(sram: Uint8Array): void {
+		if (!this.hasSram) {
+			return;
+		}
+		this.nes.setSram(sram);
+	}
 
 	isSramDirty(): boolean {
-		return false;
+		if (!this.hasSram) {
+			return false;
+		}
+		return this.nes.isSramDirty();
 	}
 
-	markSramSaved(): void {}
+	markSramSaved(): void {
+		if (!this.hasSram) {
+			return;
+		}
+		this.nes.markSramSaved();
+	}
 
 	getAudioWarning(): string | null {
 		return this.audioWarning;
