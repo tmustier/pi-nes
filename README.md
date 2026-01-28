@@ -30,6 +30,10 @@ If the native core addon isn’t built, `/nes` will show an error and exit. The 
 ## Install as a pi package
 
 ```bash
+# From npm
+pi install npm:@tmustier/pi-nes
+
+# From git
 pi install git:github.com/tmustier/pi-nes
 ```
 
