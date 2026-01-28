@@ -15,9 +15,15 @@ export interface NesConfig {
 	keybindings: InputMapping;
 }
 
+const DEFAULT_ROM_DIR = path.join(path.sep, "roms", "nes");
+
+function defaultSaveDir(romDir: string): string {
+	return path.join(romDir, "saves");
+}
+
 export const DEFAULT_CONFIG: NesConfig = {
-	romDir: path.join(path.sep, "roms", "nes"),
-	saveDir: path.join(os.homedir(), ".pi", "nes", "saves"),
+	romDir: DEFAULT_ROM_DIR,
+	saveDir: defaultSaveDir(DEFAULT_ROM_DIR),
 	enableAudio: false,
 	renderer: "image",
 	pixelScale: 1.2,
@@ -39,15 +45,18 @@ export function getConfigPath(): string {
 
 export function normalizeConfig(raw: unknown): NesConfig {
 	const parsed = typeof raw === "object" && raw !== null ? (raw as RawConfig) : {};
+	const romDir =
+		typeof parsed.romDir === "string" && parsed.romDir.length > 0
+			? normalizePath(parsed.romDir, DEFAULT_CONFIG.romDir)
+			: DEFAULT_CONFIG.romDir;
+	const saveDirFallback = defaultSaveDir(romDir);
+	const saveDir =
+		typeof parsed.saveDir === "string" && parsed.saveDir.length > 0
+			? normalizePath(parsed.saveDir, saveDirFallback)
+			: saveDirFallback;
 	return {
-		romDir:
-			typeof parsed.romDir === "string" && parsed.romDir.length > 0
-				? normalizePath(parsed.romDir, DEFAULT_CONFIG.romDir)
-				: DEFAULT_CONFIG.romDir,
-		saveDir:
-			typeof parsed.saveDir === "string" && parsed.saveDir.length > 0
-				? normalizePath(parsed.saveDir, DEFAULT_CONFIG.saveDir)
-				: DEFAULT_CONFIG.saveDir,
+		romDir,
+		saveDir,
 		enableAudio: typeof parsed.enableAudio === "boolean" ? parsed.enableAudio : DEFAULT_CONFIG.enableAudio,
 		renderer: parsed.renderer === "text" ? "text" : DEFAULT_CONFIG.renderer,
 		pixelScale: normalizePixelScale(parsed.pixelScale),
@@ -61,12 +70,15 @@ export function formatConfig(config: NesConfig): string {
 
 export async function loadConfig(): Promise<NesConfig> {
 	const configPath = getConfigPath();
+	let config: NesConfig;
 	try {
 		const raw = await fs.readFile(configPath, "utf8");
-		return normalizeConfig(JSON.parse(raw));
+		config = normalizeConfig(JSON.parse(raw));
 	} catch {
-		return DEFAULT_CONFIG;
+		config = DEFAULT_CONFIG;
 	}
+	await ensureDirectory(config.saveDir);
+	return config;
 }
 
 export async function configExists(): Promise<boolean> {
@@ -82,6 +94,14 @@ export async function saveConfig(config: NesConfig): Promise<void> {
 	const configPath = getConfigPath();
 	await fs.mkdir(path.dirname(configPath), { recursive: true });
 	await fs.writeFile(configPath, formatConfig(config));
+}
+
+async function ensureDirectory(dirPath: string): Promise<void> {
+	try {
+		await fs.mkdir(dirPath, { recursive: true });
+	} catch {
+		// ignore
+	}
 }
 
 function normalizePixelScale(raw: unknown): number {

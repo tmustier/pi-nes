@@ -58,8 +58,8 @@ Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for guided setup.
 
 ```json
 {
-  "romDir": "~/roms/nes",
-  "saveDir": "~/.pi/nes/saves",
+  "romDir": "/roms/nes",
+  "saveDir": "/roms/nes/saves",
   "renderer": "image",
   "pixelScale": 1.2,
   "keybindings": {
@@ -79,8 +79,8 @@ Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for guided setup.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `romDir` | `~/.pi/nes/roms` | Where to look for ROM files |
-| `saveDir` | `~/.pi/nes/saves` | Where to store battery saves |
+| `romDir` | `/roms/nes` | Where to look for ROM files |
+| `saveDir` | `/roms/nes/saves` | Where to store battery saves (defaults to `<romDir>/saves`) |
 | `renderer` | `"image"` | `"image"` (Kitty graphics) or `"text"` (ANSI) |
 | `pixelScale` | `1.2` | Display scale (0.5–4.0) |
 

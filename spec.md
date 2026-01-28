@@ -60,11 +60,9 @@ pi-nes/
 - Use `isKeyRelease()` for clean key‑up events.
 
 ## Saves
-- Store SRAM at `~/.pi/nes/saves/<rom-name>.sav`.
+- Store SRAM at `<saveDir>/<rom-name>.sav` (default `/roms/nes/saves`).
 - Load SRAM on ROM start.
 - Persist on exit and periodically (e.g., every 5–10 seconds).
-
-Note: the native core does not currently expose SRAM for persistence.
 
 ## Configuration
 - `~/.pi/nes/config.json` with:
@@ -91,4 +89,4 @@ Note: audio output is currently disabled; setting `enableAudio` will show a warn
 - Default ROM dir: `/roms/nes` (configurable).
 - Default core: `native`.
 - Default pixel scale: `1.2`.
-- Default save dir: `~/.pi/nes/saves` (configurable).
+- Default save dir: `/roms/nes/saves` (configurable).
