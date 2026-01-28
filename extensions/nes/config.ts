@@ -39,9 +39,14 @@ export function getConfigPath(): string {
 export function normalizeConfig(raw: unknown): NesConfig {
 	const parsed = typeof raw === "object" && raw !== null ? (raw as RawConfig) : {};
 	return {
-		romDir: typeof parsed.romDir === "string" && parsed.romDir.length > 0 ? parsed.romDir : DEFAULT_CONFIG.romDir,
+		romDir:
+			typeof parsed.romDir === "string" && parsed.romDir.length > 0
+				? normalizePath(parsed.romDir, DEFAULT_CONFIG.romDir)
+				: DEFAULT_CONFIG.romDir,
 		saveDir:
-			typeof parsed.saveDir === "string" && parsed.saveDir.length > 0 ? parsed.saveDir : DEFAULT_CONFIG.saveDir,
+			typeof parsed.saveDir === "string" && parsed.saveDir.length > 0
+				? normalizePath(parsed.saveDir, DEFAULT_CONFIG.saveDir)
+				: DEFAULT_CONFIG.saveDir,
 		enableAudio: typeof parsed.enableAudio === "boolean" ? parsed.enableAudio : DEFAULT_CONFIG.enableAudio,
 		renderer: parsed.renderer === "text" ? "text" : DEFAULT_CONFIG.renderer,
 		pixelScale: normalizePixelScale(parsed.pixelScale),
@@ -83,6 +88,24 @@ function normalizePixelScale(raw: unknown): number {
 		return DEFAULT_CONFIG.pixelScale;
 	}
 	return Math.min(4, Math.max(0.5, raw));
+}
+
+function normalizePath(value: string, fallback: string): string {
+	const trimmed = value.trim();
+	if (!trimmed) {
+		return fallback;
+	}
+	return expandHomePath(trimmed);
+}
+
+function expandHomePath(value: string): string {
+	if (value === "~") {
+		return os.homedir();
+	}
+	if (value.startsWith("~/") || value.startsWith("~\\")) {
+		return path.join(os.homedir(), value.slice(2));
+	}
+	return value;
 }
 
 function normalizeKeybindings(raw: unknown): InputMapping {
