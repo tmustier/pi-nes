@@ -27,7 +27,7 @@ If performance or compatibility is insufficient, consider a more accurate WASM c
 - `/nes debug [<path>]` enables a debug overlay (FPS/memory stats)
 - `Ctrl+Q` detaches overlay (session keeps running)
 - `Q` quits emulator and persists SRAM
-- Optional: `/nes-config` to set ROM directory and keybindings
+- Optional: `/nes config` (guided) or `/nes-config` (JSON) to update config
 
 ## File Layout (proposed)
 ```

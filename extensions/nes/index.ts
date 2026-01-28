@@ -3,7 +3,7 @@ import path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { NesOverlayComponent } from "./nes-component.js";
 import { createNesCore } from "./nes-core.js";
-import { formatConfig, getConfigPath, loadConfig, normalizeConfig, saveConfig } from "./config.js";
+import { DEFAULT_CONFIG, formatConfig, getConfigPath, loadConfig, normalizeConfig, saveConfig } from "./config.js";
 import { NesSession } from "./nes-session.js";
 import { listRoms } from "./roms.js";
 import { loadSram } from "./saves.js";
@@ -66,6 +66,109 @@ function parseArgs(args?: string): { debug: boolean; romArg?: string } {
 		return { debug: true, romArg: trimmed.slice(7).trim() || undefined };
 	}
 	return { debug: false, romArg: trimmed };
+}
+
+async function editConfigJson(
+	ctx: ExtensionCommandContext,
+	config: Awaited<ReturnType<typeof loadConfig>>,
+): Promise<void> {
+	const initial = formatConfig(config);
+	const edited = await ctx.ui.editor("NES config", initial);
+	if (edited === undefined) {
+		return;
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(edited);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		ctx.ui.notify(`Invalid JSON: ${message}`, "error");
+		return;
+	}
+
+	const normalized = normalizeConfig(parsed);
+	await saveConfig(normalized);
+	ctx.ui.notify(`Saved config to ${getConfigPath()}`, "info");
+}
+
+async function configureWithWizard(
+	ctx: ExtensionCommandContext,
+	config: Awaited<ReturnType<typeof loadConfig>>,
+): Promise<void> {
+	const romDirInput = await ctx.ui.input("ROM directory", config.romDir);
+	if (romDirInput === undefined) {
+		return;
+	}
+	const saveDirInput = await ctx.ui.input("Save directory", config.saveDir);
+	if (saveDirInput === undefined) {
+		return;
+	}
+	const coreChoice = await ctx.ui.select("Core", ["native", "wasm", "jsnes"]);
+	if (!coreChoice) {
+		return;
+	}
+	const rendererChoice = await ctx.ui.select("Renderer", ["image", "text"]);
+	if (!rendererChoice) {
+		return;
+	}
+	const pixelScaleInput = await ctx.ui.input("Pixel scale (0.5 - 4)", config.pixelScale.toString());
+	if (pixelScaleInput === undefined) {
+		return;
+	}
+	const pixelScaleValue = pixelScaleInput.trim() === "" ? config.pixelScale : Number(pixelScaleInput);
+	if (Number.isNaN(pixelScaleValue)) {
+		ctx.ui.notify("Pixel scale must be a number.", "error");
+		return;
+	}
+	const audioChoice = await ctx.ui.select("Audio", ["disabled (recommended)", "enabled (no output)"]);
+	if (!audioChoice) {
+		return;
+	}
+	const enableAudio = audioChoice.startsWith("enabled");
+
+	const normalized = normalizeConfig({
+		...config,
+		romDir: romDirInput.trim() || config.romDir,
+		saveDir: saveDirInput.trim() || config.saveDir,
+		core: coreChoice,
+		renderer: rendererChoice,
+		pixelScale: pixelScaleValue,
+		enableAudio,
+	});
+	await saveConfig(normalized);
+	ctx.ui.notify(`Saved config to ${getConfigPath()}`, "info");
+}
+
+async function editConfig(ctx: ExtensionCommandContext): Promise<void> {
+	if (!ctx.hasUI) {
+		ctx.ui.notify("NES config requires interactive mode", "error");
+		return;
+	}
+	const config = await loadConfig();
+	const choice = await ctx.ui.select("NES configuration", [
+		"Guided setup",
+		"Edit JSON",
+		"Reset to defaults",
+	]);
+	if (!choice) {
+		return;
+	}
+	if (choice === "Guided setup") {
+		await configureWithWizard(ctx, config);
+		return;
+	}
+	if (choice === "Edit JSON") {
+		await editConfigJson(ctx, config);
+		return;
+	}
+
+	const confirm = await ctx.ui.confirm("Reset NES config", "Restore defaults?");
+	if (!confirm) {
+		return;
+	}
+	await saveConfig(DEFAULT_CONFIG);
+	ctx.ui.notify(`Saved config to ${getConfigPath()}`, "info");
 }
 
 async function createSession(romPath: string, ctx: ExtensionCommandContext, config: Awaited<ReturnType<typeof loadConfig>>): Promise<NesSession | null> {
@@ -175,6 +278,15 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
+			const trimmedArgs = args?.trim();
+			if (trimmedArgs) {
+				const lower = trimmedArgs.toLowerCase();
+				if (lower === "config" || lower.startsWith("config ")) {
+					await editConfig(ctx);
+					return;
+				}
+			}
+
 			const config = await loadConfig();
 			const configPath = getConfigPath();
 			const { debug, romArg } = parseArgs(args);
@@ -218,29 +330,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("nes-config", {
 		description: "Edit NES configuration",
 		handler: async (_args, ctx) => {
-			if (!ctx.hasUI) {
-				ctx.ui.notify("NES config requires interactive mode", "error");
-				return;
-			}
-			const config = await loadConfig();
-			const initial = formatConfig(config);
-			const edited = await ctx.ui.editor("NES config", initial);
-			if (edited === undefined) {
-				return;
-			}
-
-			let parsed: unknown;
-			try {
-				parsed = JSON.parse(edited);
-			} catch (error) {
-				const message = error instanceof Error ? error.message : String(error);
-				ctx.ui.notify(`Invalid JSON: ${message}`, "error");
-				return;
-			}
-
-			const normalized = normalizeConfig(parsed);
-			await saveConfig(normalized);
-			ctx.ui.notify(`Saved config to ${getConfigPath()}`, "info");
+			await editConfig(ctx);
 		},
 	});
 }

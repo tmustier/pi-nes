@@ -44,7 +44,8 @@ Commands:
 - `/nes` — pick a ROM from the configured directory or reattach to a running session
 - `/nes <path>` — load a specific ROM
 - `/nes debug [<path>]` — enable debug overlay (FPS/memory stats)
-- `/nes-config` — edit configuration
+- `/nes config` — guided configuration (JSON editor + reset)
+- `/nes-config` — edit configuration (alias)
 
 Controls:
 - `Ctrl+Q` — detach overlay (keeps the session running)
@@ -54,7 +55,7 @@ Note: if a session is running, `/nes` reattaches. Use `/nes <path>` to start a n
 
 ## Configuration
 
-Config file: `~/.pi/nes/config.json`
+Config file: `~/.pi/nes/config.json` (use `/nes config` for a guided editor or `/nes-config` to edit JSON directly).
 
 Example:
 ```json
