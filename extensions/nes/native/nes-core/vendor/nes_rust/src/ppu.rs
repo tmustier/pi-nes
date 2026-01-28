@@ -438,22 +438,22 @@ impl Ppu {
 		// 0x0000 - 0x1FFF is mapped with cartridge's CHR-ROM if exists.
 		// Otherwise load from VRAM.
 
-		match address < 0x2000 && rom.has_chr_rom() {
-			true => rom.load(address as u32),
-			false => self.vram.load(self.convert_vram_address(address, rom) as u32)
+		if address < 0x2000 {
+			return rom.load_chr(address as u32);
 		}
+		self.vram.load(self.convert_vram_address(address, rom) as u32)
 	}
 
 	fn store(&mut self, mut address: u16, value: u8, rom: &mut Rom) {
 		address = address & 0x3FFF;  // just in case
 
-		// 0x0000 - 0x1FFF is mapped with cartridge's CHR-ROM if exists.
-		// Otherwise store to VRAM.
+		// 0x0000 - 0x1FFF is mapped with cartridge CHR (ROM or RAM).
 
-		match address < 0x2000 && rom.has_chr_rom() {
-			true => rom.store(address as u32, value),
-			false => self.vram.store(self.convert_vram_address(address, rom) as u32, value)
-		};
+		if address < 0x2000 {
+			rom.store_chr(address as u32, value);
+			return;
+		}
+		self.vram.store(self.convert_vram_address(address, rom) as u32, value);
 	}
 
 	fn convert_vram_address(&self, address: u16, rom: &Rom) -> u16 {

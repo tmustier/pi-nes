@@ -4,6 +4,7 @@ use mapper::{Mapper, MapperFactory};
 pub struct Rom {
 	header: RomHeader,
 	memory: Memory,
+	chr_ram: Option<Memory>,
 	mapper: Box<dyn Mapper>
 }
 
@@ -26,9 +27,14 @@ impl Rom {
 		} else {
 			Vec::new()
 		};
+		let chr_ram = match header.chr_ram_size_bytes() {
+			0 => None,
+			size => Some(Memory::new(vec![0; size])),
+		};
 		Rom {
 			header: header,
 			memory: Memory::new(rom_data),
+			chr_ram,
 			mapper: mapper
 		}
 	}
@@ -43,19 +49,61 @@ impl Rom {
 	 * In general writing control registers in Mapper via .store() switches bank.
 	 */
 	pub fn load(&self, address: u32) -> u8 {
-		let mut address_in_rom = 0 as u32;
 		if address < 0x2000 {
-			// load from character rom
-			address_in_rom += self.header.prg_rom_bank_num() as u32 * 0x4000;
-			address_in_rom += self.mapper.map_for_chr_rom(address);
-		} else {
-			address_in_rom += self.mapper.map(address);
+			return self.load_chr(address);
 		}
-		self.memory.load(address_in_rom)
+		self.memory.load(self.mapper.map(address))
+	}
+
+	pub fn load_chr(&self, address: u32) -> u8 {
+		let mapped = self.map_chr_address(address);
+		if let Some(chr_ram) = &self.chr_ram {
+			return chr_ram.load(mapped);
+		}
+		let offset = self.prg_rom_size() + mapped;
+		self.memory.load(offset)
+	}
+
+	pub fn store_chr(&mut self, address: u32, value: u8) {
+		let size = match self.chr_ram.as_ref() {
+			Some(ram) => ram.capacity(),
+			None => return,
+		};
+		if size == 0 {
+			return;
+		}
+		let mapped = self.mapper.map_for_chr_rom(address) % size;
+		if let Some(chr_ram) = self.chr_ram.as_mut() {
+			chr_ram.store(mapped, value);
+		}
 	}
 
 	pub fn load_without_mapping(&self, address: u32) -> u8 {
 		self.memory.load(address)
+	}
+
+	fn prg_rom_size(&self) -> u32 {
+		self.header.prg_rom_bank_num() as u32 * 0x4000
+	}
+
+	fn chr_rom_size(&self) -> u32 {
+		self.header.chr_rom_bank_num() as u32 * 0x2000
+	}
+
+	fn chr_ram_size(&self) -> u32 {
+		self.chr_ram.as_ref().map_or(0, |ram| ram.capacity())
+	}
+
+	fn map_chr_address(&self, address: u32) -> u32 {
+		let size = if self.chr_ram.is_some() {
+			self.chr_ram_size()
+		} else {
+			self.chr_rom_size()
+		};
+		if size == 0 {
+			return 0;
+		}
+		self.mapper.map_for_chr_rom(address) % size
 	}
 
 	/**
@@ -139,6 +187,13 @@ impl RomHeader {
 
 	fn has_chr_rom(&self) -> bool {
 		self.chr_rom_bank_num() > 0
+	}
+
+	fn chr_ram_size_bytes(&self) -> usize {
+		if self.has_chr_rom() {
+			return 0;
+		}
+		0x2000
 	}
 
 	fn control_byte1(&self) -> u8 {
