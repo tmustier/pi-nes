@@ -1,72 +1,65 @@
 # pi-nes
 
-NES emulator extension for pi (targeting Kitty).
+Play NES games in your terminal. A [pi](https://github.com/mariozechner/pi) extension that runs a full NES emulator with Kitty graphics support.
 
-## Setup
-
-```bash
-cd /Users/thomasmustier/projects/pi-nes
-npm install
-```
-
-### Build native addons (required core + optional Kitty shared memory)
-
-Requires a Rust toolchain (cargo + rustc).
+## Installation
 
 ```bash
-# Native NES core (required)
-cd /Users/thomasmustier/projects/pi-nes/extensions/nes/native/nes-core
-npm install
-npm run build
-
-# Kitty shared-memory renderer (optional, faster)
-cd /Users/thomasmustier/projects/pi-nes/extensions/nes/native/kitty-shm
-npm install
-npm run build
-```
-
-If the native core addon isn’t built, `/nes` will show an error and exit. The shared-memory renderer is optional; we fall back to the Kitty file transport if it’s missing.
-
-## Install as a pi package
-
-```bash
-# From npm
 pi install npm:@tmustier/pi-nes
+```
 
-# From git
+Or from git:
+```bash
 pi install git:github.com/tmustier/pi-nes
 ```
 
-## Usage
+## Quick Start
 
 ```bash
-# Local path
-pi --extension /Users/thomasmustier/projects/pi-nes
+/nes              # Pick a ROM from your library
+/nes ~/roms/smb.nes   # Load a specific ROM
 ```
 
-Commands:
-- `/nes` — pick a ROM from the configured directory or reattach to a running session
-- `/nes <path>` — load a specific ROM
-- `/nes debug [<path>]` — enable debug overlay (FPS/memory stats)
-- `/nes config` — guided configuration (ROM directory + quality)
-- `/nes-config` — edit configuration (alias)
+On first run, you'll be prompted to set your ROM directory and display quality.
 
-Controls:
-- `Ctrl+Q` — detach overlay (keeps the session running)
-- `Q` — quit emulator
+## Controls
 
-Note: if a session is running, `/nes` reattaches. Use `/nes <path>` to start a new ROM.
+### Game Controls
+
+| Action | Keys |
+|--------|------|
+| D-pad | Arrow keys or WASD |
+| A button | Z |
+| B button | X |
+| Start | Enter or Space |
+| Select | Tab |
+
+### Emulator Controls
+
+| Action | Key |
+|--------|-----|
+| Detach (keep running) | Ctrl+Q |
+| Quit | Q |
+
+**Tip:** Detach with `Ctrl+Q` to return to pi, then run `/nes` to reattach to your game.
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `/nes` | Pick a ROM or reattach to running session |
+| `/nes <path>` | Load a specific ROM file |
+| `/nes config` | Configure ROM directory and quality |
+| `/nes debug` | Show FPS and memory stats |
 
 ## Configuration
 
-Config file: `~/.pi/nes/config.json` (use `/nes config` for guided setup or `/nes-config` to edit JSON directly). On first run, `/nes` will prompt you to configure ROM directory + quality.
+Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for guided setup.
 
-Example:
 ```json
 {
-  "romDir": "/roms/nes",
-  "saveDir": "/Users/you/.pi/nes/saves",
-  "enableAudio": false,
+  "romDir": "~/roms/nes",
+  "saveDir": "~/.pi/nes/saves",
   "renderer": "image",
   "pixelScale": 1.2,
   "keybindings": {
@@ -82,14 +75,50 @@ Example:
 }
 ```
 
-## Core
+### Options
 
-The extension uses the **native Rust core** only (required build step). Battery-backed SRAM persistence for native is tracked in issue #3.
+| Option | Default | Description |
+|--------|---------|-------------|
+| `romDir` | `~/.pi/nes/roms` | Where to look for ROM files |
+| `saveDir` | `~/.pi/nes/saves` | Where to store battery saves |
+| `renderer` | `"image"` | `"image"` (Kitty graphics) or `"text"` (ANSI) |
+| `pixelScale` | `1.2` | Display scale (0.5–4.0) |
 
-## Rendering
+## Terminal Support
 
-Default renderer is `image`, which uses Kitty's image protocol for high resolution. On Kitty, we **prefer shared-memory transport (`t=s`)** when the native addon is built, falling back to the **file transport (`t=f`)** path if the addon isn’t available; non-Kitty terminals fall back to PNG. Image mode runs **nearly full-screen** (no overlay) because Kitty graphics sequences can't be safely composited inside overlays; it caps to ~90% height and centers vertically + horizontally to reduce terminal compositor load. Image mode also **throttles rendering to ~30fps** to keep emulation speed stable. Set `renderer: "text"` if you prefer ANSI half-block rendering in an overlay. You can tweak `pixelScale` to 1.5–2.0 for larger images in PNG mode.
+**Best experience:** [Kitty](https://sw.kovidgoyal.net/kitty/) terminal with image protocol support.
 
-## Audio
+- **Kitty** — Full graphics via image protocol (shared memory or file transport)
+- **Other terminals** — Falls back to ANSI half-block characters (`▀▄`)
 
-Audio output is currently disabled (no safe dependency selected). If you set `enableAudio: true`, the extension will warn and continue in silent mode.
+Set `"renderer": "text"` if you prefer the ANSI renderer or have display issues.
+
+## Limitations
+
+- **No audio** — Sound is not currently supported
+- **No save states** — Only battery-backed SRAM saves work
+
+---
+
+## Building from Source
+
+Requires Rust toolchain (cargo + rustc).
+
+```bash
+git clone https://github.com/tmustier/pi-nes
+cd pi-nes
+npm install
+
+# Build the NES core (required)
+cd extensions/nes/native/nes-core
+npm install && npm run build
+
+# Build shared memory renderer (optional, faster on Kitty)
+cd ../kitty-shm
+npm install && npm run build
+```
+
+Run locally:
+```bash
+pi --extension /path/to/pi-nes
+```
