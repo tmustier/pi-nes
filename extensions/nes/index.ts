@@ -1,9 +1,18 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { NesOverlayComponent } from "./nes-component.js";
 import { createNesCore } from "./nes-core.js";
-import { DEFAULT_CONFIG, formatConfig, getConfigPath, loadConfig, normalizeConfig, saveConfig } from "./config.js";
+import {
+	DEFAULT_CONFIG,
+	configExists,
+	formatConfig,
+	getConfigPath,
+	loadConfig,
+	normalizeConfig,
+	saveConfig,
+} from "./config.js";
 import { NesSession } from "./nes-session.js";
 import { listRoms } from "./roms.js";
 import { loadSram } from "./saves.js";
@@ -68,6 +77,60 @@ function parseArgs(args?: string): { debug: boolean; romArg?: string } {
 	return { debug: false, romArg: trimmed };
 }
 
+function displayPath(value: string): string {
+	const home = os.homedir();
+	if (value.startsWith(home)) {
+		return `~${value.slice(home.length)}`;
+	}
+	return value;
+}
+
+function resolvePathInput(input: string, cwd: string): string {
+	if (input.startsWith("~")) {
+		const trimmed = input.slice(1);
+		const suffix = trimmed.startsWith(path.sep) ? trimmed.slice(1) : trimmed;
+		return path.join(os.homedir(), suffix);
+	}
+	if (path.isAbsolute(input)) {
+		return input;
+	}
+	return path.resolve(cwd, input);
+}
+
+async function ensureRomDir(pathValue: string, ctx: ExtensionCommandContext): Promise<boolean> {
+	try {
+		const stat = await fs.stat(pathValue);
+		if (!stat.isDirectory()) {
+			ctx.ui.notify(`ROM directory is not a folder: ${pathValue}`, "error");
+			return false;
+		}
+		return true;
+	} catch {
+		try {
+			await fs.mkdir(pathValue, { recursive: true });
+			return true;
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			ctx.ui.notify(`Failed to create ROM directory ${pathValue}: ${message}`, "error");
+			return false;
+		}
+	}
+}
+
+async function validateRomDir(pathValue: string, ctx: ExtensionCommandContext): Promise<boolean> {
+	try {
+		const stat = await fs.stat(pathValue);
+		if (!stat.isDirectory()) {
+			ctx.ui.notify(`ROM directory is not a folder: ${pathValue}`, "error");
+			return false;
+		}
+		return true;
+	} catch {
+		ctx.ui.notify(`ROM directory not found: ${pathValue}`, "error");
+		return false;
+	}
+}
+
 async function editConfigJson(
 	ctx: ExtensionCommandContext,
 	config: Awaited<ReturnType<typeof loadConfig>>,
@@ -95,49 +158,68 @@ async function editConfigJson(
 async function configureWithWizard(
 	ctx: ExtensionCommandContext,
 	config: Awaited<ReturnType<typeof loadConfig>>,
-): Promise<void> {
-	const romDirInput = await ctx.ui.input("ROM directory", config.romDir);
+): Promise<boolean> {
+	const romDirPlaceholder = displayPath(config.romDir);
+	const romDirInput = await ctx.ui.input(
+		"ROM directory (or wherever you want to keep your roms)",
+		romDirPlaceholder,
+	);
 	if (romDirInput === undefined) {
-		return;
+		return false;
 	}
-	const saveDirInput = await ctx.ui.input("Save directory", config.saveDir);
-	if (saveDirInput === undefined) {
-		return;
+	const trimmedRomDir = romDirInput.trim();
+	let romDir = config.romDir;
+	if (trimmedRomDir) {
+		romDir = resolvePathInput(trimmedRomDir, ctx.cwd);
+		const valid = await validateRomDir(romDir, ctx);
+		if (!valid) {
+			return false;
+		}
+	} else {
+		const ensured = await ensureRomDir(romDir, ctx);
+		if (!ensured) {
+			return false;
+		}
 	}
-	const coreChoice = await ctx.ui.select("Core", ["native", "wasm", "jsnes"]);
-	if (!coreChoice) {
-		return;
+
+	const qualityChoice = await ctx.ui.select("Quality (pixel scale)", [
+		"Low (1.0) - faster",
+		"Balanced (1.2) - recommended",
+		"High (1.5) - sharper",
+		"Custom...",
+	]);
+	if (!qualityChoice) {
+		return false;
 	}
-	const rendererChoice = await ctx.ui.select("Renderer", ["image", "text"]);
-	if (!rendererChoice) {
-		return;
+
+	let pixelScale: number;
+	if (qualityChoice.startsWith("Low")) {
+		pixelScale = 1.0;
+	} else if (qualityChoice.startsWith("Balanced")) {
+		pixelScale = 1.2;
+	} else if (qualityChoice.startsWith("High")) {
+		pixelScale = 1.5;
+	} else {
+		const pixelScaleInput = await ctx.ui.input("Pixel scale (0.5 - 4)", config.pixelScale.toString());
+		if (pixelScaleInput === undefined) {
+			return false;
+		}
+		const parsed = pixelScaleInput.trim() === "" ? config.pixelScale : Number(pixelScaleInput);
+		if (Number.isNaN(parsed)) {
+			ctx.ui.notify("Pixel scale must be a number.", "error");
+			return false;
+		}
+		pixelScale = parsed;
 	}
-	const pixelScaleInput = await ctx.ui.input("Pixel scale (0.5 - 4)", config.pixelScale.toString());
-	if (pixelScaleInput === undefined) {
-		return;
-	}
-	const pixelScaleValue = pixelScaleInput.trim() === "" ? config.pixelScale : Number(pixelScaleInput);
-	if (Number.isNaN(pixelScaleValue)) {
-		ctx.ui.notify("Pixel scale must be a number.", "error");
-		return;
-	}
-	const audioChoice = await ctx.ui.select("Audio", ["disabled (recommended)", "enabled (no output)"]);
-	if (!audioChoice) {
-		return;
-	}
-	const enableAudio = audioChoice.startsWith("enabled");
 
 	const normalized = normalizeConfig({
 		...config,
-		romDir: romDirInput.trim() || config.romDir,
-		saveDir: saveDirInput.trim() || config.saveDir,
-		core: coreChoice,
-		renderer: rendererChoice,
-		pixelScale: pixelScaleValue,
-		enableAudio,
+		romDir,
+		pixelScale,
 	});
 	await saveConfig(normalized);
 	ctx.ui.notify(`Saved config to ${getConfigPath()}`, "info");
+	return true;
 }
 
 async function editConfig(ctx: ExtensionCommandContext): Promise<void> {
@@ -283,6 +365,14 @@ export default function (pi: ExtensionAPI) {
 				const lower = trimmedArgs.toLowerCase();
 				if (lower === "config" || lower.startsWith("config ")) {
 					await editConfig(ctx);
+					return;
+				}
+			}
+
+			const hasConfig = await configExists();
+			if (!hasConfig) {
+				const configured = await configureWithWizard(ctx, DEFAULT_CONFIG);
+				if (!configured) {
 					return;
 				}
 			}

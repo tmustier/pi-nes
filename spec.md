@@ -94,5 +94,5 @@ Note: audio output is currently disabled; setting `enableAudio` will show a warn
 ## Decisions
 - Core: jsnes (default) with mapper 0/1/2/3/4 coverage; optional nes_rust_wasm for performance (no SRAM persistence).
 - Audio: disabled (no safe dependency selected).
-- Default ROM dir: `~/roms/nes` (configurable).
+- Default ROM dir: `/roms/nes` (configurable).
 - Default save dir: `~/.pi/nes/saves` (configurable).
