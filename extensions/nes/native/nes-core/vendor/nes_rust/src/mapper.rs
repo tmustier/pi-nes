@@ -124,33 +124,33 @@ impl Mapper for MMC1Mapper {
 		} else {
 			0
 		};
-		let mut bank_num = (prg_high << 4) | prg_low;
-		if self.program_bank_num > 0 {
-			bank_num %= self.program_bank_num as u32;
-		}
+		let outer_offset = prg_high * 0x10;
+		let bank_num = prg_low;
 
 		match self.control_register.load_bits(2, 2) {
 			0 | 1 => {
 				// switch 32KB at 0x8000, ignoring low bit of bank number
 				// TODO: Fix me
 				offset = offset | (address & 0x4000);
-				bank = bank_num & 0x1E;
+				bank = outer_offset + (bank_num & 0x1E);
 			},
 			2 => {
 				// fix first bank at 0x8000 and switch 16KB bank at 0xC000
 				bank = match address < 0xC000 {
-					true => 0,
-					false => bank_num
+					true => outer_offset,
+					false => outer_offset + bank_num
 				};
 			},
 			_ /*3*/ => {
 				// fix last bank at 0xC000 and switch 16KB bank at 0x8000
 				bank = match address >= 0xC000 {
-					true => self.program_bank_num as u32 - 1,
-					false => bank_num
+					true => outer_offset + 0x0F,
+					false => outer_offset + bank_num
 				};
 			}
 		};
+		let max_bank = self.program_bank_num as u32;
+		let bank = if max_bank > 0 { bank % max_bank } else { bank };
 		bank * 0x4000 + offset
 	}
 
