@@ -1,10 +1,17 @@
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getRomDisplayName } from "./roms.js";
 
+function getSaveId(romPath: string): string {
+	const resolved = path.resolve(romPath);
+	return createHash("sha1").update(resolved).digest("hex").slice(0, 8);
+}
+
 export function getSavePath(saveDir: string, romPath: string): string {
 	const romName = getRomDisplayName(romPath);
-	return path.join(saveDir, `${romName}.sav`);
+	const hash = getSaveId(romPath);
+	return path.join(saveDir, `${romName}-${hash}.sav`);
 }
 
 export async function loadSram(saveDir: string, romPath: string): Promise<Uint8Array | null> {
