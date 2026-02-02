@@ -1,6 +1,6 @@
 {
   "name": "@tmustier/pi-nes",
-  "version": "0.2.32",
+  "version": "0.2.33",
   "description": "NES emulator extension for pi",
   "keywords": [
     "pi-package",
