@@ -118,8 +118,13 @@ impl Mapper for MMC1Mapper {
 	fn map(&self, address: u32) -> u32 {
 		let bank: u32;
 		let mut offset = address & 0x3FFF;
-		let bank_mask = if self.program_bank_num > 16 { 0x1F } else { 0x0F };
-		let mut bank_num = self.prg_bank_register.load() as u32 & bank_mask;
+		let prg_low = (self.prg_bank_register.load() as u32) & 0x0F;
+		let prg_high = if self.program_bank_num > 16 {
+			((self.chr_bank0_register.load() as u32) & 0x10) >> 4
+		} else {
+			0
+		};
+		let mut bank_num = (prg_high << 4) | prg_low;
 		if self.program_bank_num > 0 {
 			bank_num %= self.program_bank_num as u32;
 		}
