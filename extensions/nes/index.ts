@@ -43,15 +43,17 @@ async function selectRom(
 			return null;
 		}
 
-		const selection = await ctx.ui.select(
-			"Select a ROM",
-			roms.map((rom) => rom.name),
-		);
+		const options = roms.map((rom, index) => `${index + 1}. ${rom.name}`);
+		const selection = await ctx.ui.select("Select a ROM", options);
 		if (!selection) {
 			return null;
 		}
-		const match = roms.find((rom) => rom.name === selection);
-		return match?.path ?? null;
+		const index = options.indexOf(selection);
+		if (index < 0) {
+			ctx.ui.notify("ROM selection failed. Please try again.", "error");
+			return null;
+		}
+		return roms[index]?.path ?? null;
 	} catch {
 		ctx.ui.notify(`Failed to read ROM directory: ${romDir}. Update ${configPath} to set romDir.`, "error");
 		return null;
