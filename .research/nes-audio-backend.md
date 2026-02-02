@@ -54,3 +54,14 @@ Audio output was disabled after `speaker` triggered a high-severity advisory (GH
 - **Keep audio disabled by default** (current behavior).
 - If/when audio is reintroduced, prefer a **native Rust backend (e.g., `cpal`)** with an opt-in flag and explicit install notes.
 - Node-based options (`naudiodon`, `node-portaudio`, `node-core-audio`) are currently **too stale** for a “safe” dependency policy.
+
+## 2026 update: Rust-native backend status
+- **cpal** is active (RustAudio) with recent releases (lib.rs lists updates in 2025). It targets CoreAudio on macOS and is pure Rust.
+- **rodio** is active but sits on top of cpal and requires newer Rust; heavier than needed for streaming raw PCM.
+- **miniaudio** is a Rust binding to a C library; viable but adds a C dependency vs pure Rust.
+
+## Suggested design (native core)
+- Add a Rust audio thread in `nes-core` using `cpal`.
+- Implement a ring buffer (`ringbuf` or custom) for f32 samples from `Apu`.
+- Maintain 44.1kHz (APU sample_period already targets 44.1k). If the device rate differs, resample or adjust sample_period.
+- Gate behind config (`enableAudio`) and compile-time feature flag so builds without audio remain minimal.
