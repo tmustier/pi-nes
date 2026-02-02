@@ -8,6 +8,33 @@ export interface FrameBuffer {
 	data: Uint8Array;
 }
 
+export interface NesCpuDebugState {
+	pc: number;
+	a: number;
+	x: number;
+	y: number;
+	sp: number;
+	p: number;
+	lastPc: number;
+	lastOpcode: number;
+}
+
+export interface NesMapperDebugState {
+	mapperNum: number;
+	control: number;
+	prg: number;
+	chr0: number;
+	chr1: number;
+	prgMode: number;
+	chrMode: number;
+	outerPrg: number;
+}
+
+export interface NesDebugState {
+	cpu: NesCpuDebugState;
+	mapper: NesMapperDebugState;
+}
+
 export interface NesCore {
 	loadRom(rom: Uint8Array): void;
 	tick(): void;
@@ -18,6 +45,7 @@ export interface NesCore {
 	isSramDirty(): boolean;
 	markSramSaved(): void;
 	getAudioWarning(): string | null;
+	getDebugState(): NesDebugState | null;
 	reset(): void;
 	dispose(): void;
 }
@@ -39,6 +67,7 @@ interface NativeNesInstance {
 	setSram(data: Uint8Array): void;
 	isSramDirty(): boolean;
 	markSramSaved(): void;
+	getDebugState(): NesDebugState;
 	getFramebuffer(): Uint8Array;
 }
 
@@ -146,6 +175,10 @@ class NativeNesCore implements NesCore {
 
 	getAudioWarning(): string | null {
 		return this.audioWarning;
+	}
+
+	getDebugState(): NesDebugState | null {
+		return this.nes.getDebugState();
 	}
 
 	reset(): void {

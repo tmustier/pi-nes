@@ -148,8 +148,8 @@ export class NesOverlayComponent implements Component {
 
 		const footer = " NES | Ctrl+Q=Detach | Q=Quit | WASD/Arrows=Move | Z/X=A/B | Enter/Space=Start | Tab=Select";
 		const frameBuffer = this.core.getFrameBuffer();
-		const debugLine = this.debug ? this.buildDebugLine() : null;
-		const footerRows = this.debug ? 2 : 1;
+		const debugLines = this.debug ? this.buildDebugLines() : [];
+		const footerRows = this.debug ? 1 + debugLines.length : 1;
 		if (this.rendererMode === "image") {
 			const lines = this.imageRenderer.render(
 				frameBuffer,
@@ -159,8 +159,8 @@ export class NesOverlayComponent implements Component {
 				this.pixelScale,
 				!this.windowed,
 			);
-			if (debugLine) {
-				lines.push(truncateToWidth(debugLine, width));
+			for (const line of debugLines) {
+				lines.push(truncateToWidth(line, width));
 			}
 			lines.push(truncateToWidth(`\x1b[2m${footer}\x1b[0m`, width));
 			return lines;
@@ -176,8 +176,8 @@ export class NesOverlayComponent implements Component {
 
 		const rawLines = renderHalfBlock(frameBuffer, targetCols, targetRows, scaleX, scaleY);
 		const lines = rawLines.map((line) => truncateToWidth(`${padPrefix}${line}`, width));
-		if (debugLine) {
-			lines.push(truncateToWidth(`${padPrefix}${debugLine}`, width));
+		for (const line of debugLines) {
+			lines.push(truncateToWidth(`${padPrefix}${line}`, width));
 		}
 		lines.push(truncateToWidth(`\x1b[2m${padPrefix}${footer}\x1b[0m`, width));
 		return lines;
@@ -201,19 +201,40 @@ export class NesOverlayComponent implements Component {
 		this.imageCleared = true;
 	}
 
-	private buildDebugLine(): string | null {
+	private buildDebugLines(): string[] {
 		const stats = this.statsProvider?.();
 		if (!stats) {
-			return null;
+			return [];
 		}
 		const label = this.debugLabel ? ` core=${this.debugLabel}` : "";
 		const mem = stats.memory;
-		const line = `DEBUG${label} fps=${stats.tickFps.toFixed(1)} render=${stats.renderFps.toFixed(1)} `
+		const lines: string[] = [];
+		const statsLine = `DEBUG${label} fps=${stats.tickFps.toFixed(1)} render=${stats.renderFps.toFixed(1)} `
 			+ `frames/tick=${stats.avgFramesPerTick.toFixed(2)} dropped=${stats.droppedFrames} `
 			+ `catch=${stats.lastCatchUpFrames}/${stats.maxCatchUpFrames} `
 			+ `eld=${stats.eventLoopDelayMs.toFixed(2)}ms `
 			+ `mem=${mem.heapUsedMb.toFixed(1)}/${mem.rssMb.toFixed(1)}MB ext=${mem.externalMb.toFixed(1)}MB ab=${mem.arrayBuffersMb.toFixed(1)}MB`;
-		return `\x1b[33m${line}\x1b[0m`;
+		lines.push(`\x1b[33m${statsLine}\x1b[0m`);
+
+		const debugState = this.core.getDebugState();
+		if (debugState) {
+			const cpu = debugState.cpu;
+			const mapper = debugState.mapper;
+			const cpuLine = `CPU pc=${this.formatHex(cpu.pc, 4)} op=${this.formatHex(cpu.lastOpcode, 2)} `
+				+ `a=${this.formatHex(cpu.a, 2)} x=${this.formatHex(cpu.x, 2)} y=${this.formatHex(cpu.y, 2)} `
+				+ `sp=${this.formatHex(cpu.sp, 2)} p=${this.formatHex(cpu.p, 2)} `
+				+ `last=${this.formatHex(cpu.lastPc, 4)}`;
+			const mapperLine = `MMC1 ctrl=${this.formatHex(mapper.control, 2)} prg=${this.formatHex(mapper.prg, 2)} `
+				+ `chr0=${this.formatHex(mapper.chr0, 2)} chr1=${this.formatHex(mapper.chr1, 2)} `
+				+ `prgMode=${mapper.prgMode} chrMode=${mapper.chrMode} outer=${mapper.outerPrg}`;
+			lines.push(`\x1b[36m${cpuLine}\x1b[0m`);
+			lines.push(`\x1b[36m${mapperLine}\x1b[0m`);
+		}
+		return lines;
+	}
+
+	private formatHex(value: number, width: number): string {
+		return value.toString(16).padStart(width, "0");
 	}
 
 	private tapButton(button: "start" | "select"): void {

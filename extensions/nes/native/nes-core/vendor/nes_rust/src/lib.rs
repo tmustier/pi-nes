@@ -14,7 +14,8 @@ pub mod default_input;
 pub mod default_audio;
 pub mod default_display;
 
-use cpu::Cpu;
+use cpu::{Cpu, CpuDebugState};
+use mapper::MapperDebugState;
 use rom::Rom;
 use button::Button;
 use input::Input;
@@ -60,6 +61,11 @@ use audio::Audio;
 /// ```
 pub struct Nes {
 	cpu: Cpu
+}
+
+pub struct NesDebugState {
+	pub cpu: CpuDebugState,
+	pub mapper: MapperDebugState,
 }
 
 impl Nes {
@@ -164,5 +170,12 @@ impl Nes {
 
 	pub fn mark_sram_saved(&mut self) {
 		self.cpu.mark_sram_saved();
+	}
+
+	pub fn debug_state(&self) -> NesDebugState {
+		NesDebugState {
+			cpu: self.cpu.debug_state(),
+			mapper: self.cpu.mapper_debug_state(),
+		}
 	}
 }

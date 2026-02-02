@@ -14,6 +14,17 @@ const SRAM_START: usize = 0x6000;
 const SRAM_END: usize = 0x8000;
 const SRAM_SIZE: usize = SRAM_END - SRAM_START;
 
+pub struct CpuDebugState {
+	pub pc: u16,
+	pub a: u8,
+	pub x: u8,
+	pub y: u8,
+	pub sp: u8,
+	pub p: u8,
+	pub last_pc: u16,
+	pub last_opcode: u8,
+}
+
 fn to_joypad_button(button: button::Button) -> joypad::Button {
 	match button {
 		button::Button::Joypad1A |
@@ -46,6 +57,8 @@ pub struct Cpu {
 	x: Register<u8>,
 	y: Register<u8>,
 	p: CpuStatusRegister,
+	last_pc: u16,
+	last_opcode: u8,
 
 	// CPU inside RAM
 	ram: Memory,
@@ -1106,6 +1119,8 @@ impl Cpu {
 			x: Register::<u8>::new(),
 			y: Register::<u8>::new(),
 			p: CpuStatusRegister::new(),
+			last_pc: 0,
+			last_opcode: 0,
 			ram: Memory::new(vec![0; 64 * 1024]), // 64KB
 			sram_dirty: false,
 			stall_cycles: 0,
@@ -1157,6 +1172,23 @@ impl Cpu {
 	fn reset_internal(&mut self) {
 		self.sp.sub(3);
 		self.p.set_i();
+	}
+
+	pub fn debug_state(&self) -> CpuDebugState {
+		CpuDebugState {
+			pc: self.pc.load(),
+			a: self.a.load(),
+			x: self.x.load(),
+			y: self.y.load(),
+			sp: self.sp.load(),
+			p: self.p.load(),
+			last_pc: self.last_pc,
+			last_opcode: self.last_opcode,
+		}
+	}
+
+	pub fn mapper_debug_state(&self) -> crate::mapper::MapperDebugState {
+		self.rom.mapper_debug_state()
 	}
 
 	pub fn get_ppu(&self) -> &Ppu {
@@ -1301,7 +1333,10 @@ impl Cpu {
 	}
 
 	fn fetch(&mut self) -> u8 {
-		let opc = self.load(self.pc.load());
+		let pc = self.pc.load();
+		let opc = self.load(pc);
+		self.last_pc = pc;
+		self.last_opcode = opc;
 		self.pc.increment();
 		opc
 	}

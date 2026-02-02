@@ -3,6 +3,18 @@ use rom::Mirrorings;
 use rom::RomHeader;
 use register::Register;
 
+#[derive(Clone, Copy, Default)]
+pub struct MapperDebugState {
+	pub mapper_num: u8,
+	pub control: u8,
+	pub prg: u8,
+	pub chr0: u8,
+	pub chr1: u8,
+	pub prg_mode: u8,
+	pub chr_mode: u8,
+	pub outer_prg: u8,
+}
+
 impl MapperFactory {
 	pub fn create(header: &RomHeader) -> Box<dyn Mapper> {
 		match header.mapper_num() {
@@ -32,6 +44,10 @@ pub trait Mapper {
 
 	// @TODO: MMC3Mapper specific. Should this method be here?
 	fn drive_irq_counter(&mut self) -> bool;
+
+	fn debug_state(&self) -> MapperDebugState {
+		MapperDebugState::default()
+	}
 }
 
 pub struct NRomMapper {
@@ -193,6 +209,23 @@ impl Mapper for MMC1Mapper {
 			};
 			self.register_write_count = 0;
 			self.latch.clear();
+		}
+	}
+
+	fn debug_state(&self) -> MapperDebugState {
+		MapperDebugState {
+			mapper_num: 1,
+			control: self.control_register.load(),
+			prg: self.prg_bank_register.load(),
+			chr0: self.chr_bank0_register.load(),
+			chr1: self.chr_bank1_register.load(),
+			prg_mode: self.control_register.load_bits(2, 2),
+			chr_mode: self.control_register.load_bit(4),
+			outer_prg: if self.program_bank_num > 16 {
+				(self.chr_bank0_register.load() >> 4) & 1
+			} else {
+				0
+			},
 		}
 	}
 

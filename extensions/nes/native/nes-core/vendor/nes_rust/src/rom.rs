@@ -1,5 +1,5 @@
 use memory::Memory;
-use mapper::{Mapper, MapperFactory};
+use mapper::{Mapper, MapperFactory, MapperDebugState};
 
 pub struct Rom {
 	header: RomHeader,
@@ -130,6 +130,10 @@ impl Rom {
 			true => self.mapper.mirroring_type(),
 			false => self.header.mirroring_type()
 		}
+	}
+
+	pub fn mapper_debug_state(&self) -> MapperDebugState {
+		self.mapper.debug_state()
 	}
 
 	// @TODO: MMC3Mapper specific. Should this method be here?

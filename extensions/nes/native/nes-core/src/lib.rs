@@ -48,6 +48,36 @@ impl Display for NativeDisplay {
 	}
 }
 
+#[napi(object)]
+pub struct CpuDebugState {
+	pub pc: u16,
+	pub a: u8,
+	pub x: u8,
+	pub y: u8,
+	pub sp: u8,
+	pub p: u8,
+	pub last_pc: u16,
+	pub last_opcode: u8,
+}
+
+#[napi(object)]
+pub struct MapperDebugState {
+	pub mapper_num: u8,
+	pub control: u8,
+	pub prg: u8,
+	pub chr0: u8,
+	pub chr1: u8,
+	pub prg_mode: u8,
+	pub chr_mode: u8,
+	pub outer_prg: u8,
+}
+
+#[napi(object)]
+pub struct NesDebugState {
+	pub cpu: CpuDebugState,
+	pub mapper: MapperDebugState,
+}
+
 #[napi]
 pub struct NativeNes {
 	nes: Nes,
@@ -131,6 +161,33 @@ impl NativeNes {
 	#[napi]
 	pub fn mark_sram_saved(&mut self) {
 		self.nes.mark_sram_saved();
+	}
+
+	#[napi]
+	pub fn get_debug_state(&self) -> NesDebugState {
+		let state = self.nes.debug_state();
+		NesDebugState {
+			cpu: CpuDebugState {
+				pc: state.cpu.pc,
+				a: state.cpu.a,
+				x: state.cpu.x,
+				y: state.cpu.y,
+				sp: state.cpu.sp,
+				p: state.cpu.p,
+				last_pc: state.cpu.last_pc,
+				last_opcode: state.cpu.last_opcode,
+			},
+			mapper: MapperDebugState {
+				mapper_num: state.mapper.mapper_num,
+				control: state.mapper.control,
+				prg: state.mapper.prg,
+				chr0: state.mapper.chr0,
+				chr1: state.mapper.chr1,
+				prg_mode: state.mapper.prg_mode,
+				chr_mode: state.mapper.chr_mode,
+				outer_prg: state.mapper.outer_prg,
+			},
+		}
 	}
 
 	#[napi]
