@@ -92,6 +92,6 @@ Note: audio output is currently disabled; setting `enableAudio` will show a warn
 - Default ROM dir: `/roms/nes` (configurable).
 - Default core: `native`.
 - Default image quality: `balanced` (30 fps).
-- Default video filter: `off`.
+- Default video filter: `ntsc-composite`.
 - Default pixel scale: `1.0`.
 - Default save dir: `/roms/nes/saves` (configurable).

@@ -31,7 +31,7 @@ export const DEFAULT_CONFIG: NesConfig = {
 	enableAudio: false,
 	renderer: "image",
 	imageQuality: "balanced",
-	videoFilter: "off",
+	videoFilter: "ntsc-composite",
 	pixelScale: 1.0,
 	keybindings: cloneMapping(DEFAULT_INPUT_MAPPING),
 };
@@ -149,7 +149,7 @@ function normalizeVideoFilter(raw: unknown): VideoFilter {
 		case "ntsc-rgb":
 			return raw;
 		default:
-			return "off";
+			return DEFAULT_CONFIG.videoFilter;
 	}
 }
 

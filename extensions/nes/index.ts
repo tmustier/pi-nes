@@ -172,9 +172,9 @@ async function configureWithWizard(
 	const imageQuality = isHighQuality ? "high" : "balanced";
 
 	const filterOptions: Array<{ label: string; value: VideoFilter }> = [
-		{ label: "Sharp (default) — pixel-perfect, no filtering", value: "off" },
+		{ label: "CRT Classic (default) — authentic scanlines + color bleed", value: "ntsc-composite" },
 		{ label: "CRT Soft — subtle retro look", value: "ntsc-rgb" },
-		{ label: "CRT Classic — authentic scanlines + color bleed", value: "ntsc-composite" },
+		{ label: "Sharp — pixel-perfect, no filtering", value: "off" },
 	];
 	const filterChoice = await ctx.ui.select(
 		"Display style",
@@ -183,7 +183,8 @@ async function configureWithWizard(
 	if (!filterChoice) {
 		return false;
 	}
-	const videoFilter = filterOptions.find((option) => option.label === filterChoice)?.value ?? "off";
+	const videoFilter =
+		filterOptions.find((option) => option.label === filterChoice)?.value ?? DEFAULT_CONFIG.videoFilter;
 	const pixelScale = config.pixelScale;
 
 	const defaultSaveDir = getDefaultSaveDir(config.romDir);
