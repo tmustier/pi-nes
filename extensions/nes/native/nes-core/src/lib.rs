@@ -7,6 +7,23 @@ use nes_rust::display::{Display, SCREEN_HEIGHT, SCREEN_WIDTH};
 use nes_rust::rom::Rom;
 use nes_rust::Nes;
 
+const FRAME_BYTE_LEN: usize = (SCREEN_WIDTH * SCREEN_HEIGHT * 3) as usize;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum VideoFilterMode {
+	Off,
+	NtscComposite,
+	NtscSvideo,
+	NtscRgb,
+}
+
+struct VideoFilterConfig {
+	luma: [f32; 3],
+	chroma: [f32; 3],
+	scanline_dim: f32,
+	chroma_gain: f32,
+}
+
 struct NativeDisplay {
 	pixels: Vec<u8>,
 }
@@ -14,7 +31,7 @@ struct NativeDisplay {
 impl NativeDisplay {
 	fn new() -> Self {
 		Self {
-			pixels: vec![0; (SCREEN_WIDTH * SCREEN_HEIGHT * 3) as usize],
+			pixels: vec![0; FRAME_BYTE_LEN],
 		}
 	}
 }
@@ -77,6 +94,8 @@ pub struct NesDebugState {
 pub struct NativeNes {
 	nes: Nes,
 	framebuffer: Vec<u8>,
+	filter_buffer: Vec<u8>,
+	video_filter: VideoFilterMode,
 }
 
 #[napi]
@@ -89,7 +108,9 @@ impl NativeNes {
 		let nes = Nes::new(input, display, audio);
 		Self {
 			nes,
-			framebuffer: vec![0; (SCREEN_WIDTH * SCREEN_HEIGHT * 3) as usize],
+			framebuffer: vec![0; FRAME_BYTE_LEN],
+			filter_buffer: vec![0; FRAME_BYTE_LEN],
+			video_filter: VideoFilterMode::Off,
 		}
 	}
 
@@ -112,6 +133,20 @@ impl NativeNes {
 	#[napi]
 	pub fn refresh_framebuffer(&mut self) {
 		self.nes.copy_pixels(&mut self.framebuffer);
+		if let Some(config) = video_filter_config(self.video_filter) {
+			self.filter_buffer.copy_from_slice(&self.framebuffer);
+			apply_video_filter(&self.filter_buffer, &mut self.framebuffer, &config);
+		}
+	}
+
+	#[napi]
+	pub fn set_video_filter(&mut self, mode: u8) {
+		self.video_filter = match mode {
+			1 => VideoFilterMode::NtscComposite,
+			2 => VideoFilterMode::NtscSvideo,
+			3 => VideoFilterMode::NtscRgb,
+			_ => VideoFilterMode::Off,
+		};
 	}
 
 	#[napi]
@@ -200,4 +235,82 @@ fn map_button(button: u8) -> Option<Button> {
 		7 => Some(Button::Joypad1Right),
 		_ => None,
 	}
+}
+
+fn video_filter_config(mode: VideoFilterMode) -> Option<VideoFilterConfig> {
+	match mode {
+		VideoFilterMode::Off => None,
+		VideoFilterMode::NtscComposite => Some(VideoFilterConfig {
+			luma: [0.2, 0.6, 0.2],
+			chroma: [0.25, 0.5, 0.25],
+			scanline_dim: 0.85,
+			chroma_gain: 0.9,
+		}),
+		VideoFilterMode::NtscSvideo => Some(VideoFilterConfig {
+			luma: [0.15, 0.7, 0.15],
+			chroma: [0.2, 0.6, 0.2],
+			scanline_dim: 0.9,
+			chroma_gain: 0.95,
+		}),
+		VideoFilterMode::NtscRgb => Some(VideoFilterConfig {
+			luma: [0.1, 0.8, 0.1],
+			chroma: [0.1, 0.8, 0.1],
+			scanline_dim: 0.95,
+			chroma_gain: 1.0,
+		}),
+	}
+}
+
+fn apply_video_filter(source: &[u8], target: &mut [u8], config: &VideoFilterConfig) {
+	let width = SCREEN_WIDTH as usize;
+	let height = SCREEN_HEIGHT as usize;
+	if source.len() < FRAME_BYTE_LEN || target.len() < FRAME_BYTE_LEN {
+		return;
+	}
+	for y in 0..height {
+		let scanline = if y % 2 == 0 { 1.0 } else { config.scanline_dim };
+		for x in 0..width {
+			let left_x = if x == 0 { 0 } else { x - 1 };
+			let right_x = if x + 1 >= width { width - 1 } else { x + 1 };
+			let center_x = x;
+
+			let left_idx = (y * width + left_x) * 3;
+			let center_idx = (y * width + center_x) * 3;
+			let right_idx = (y * width + right_x) * 3;
+
+			let (y0, i0, q0) = rgb_to_yiq(source[left_idx], source[left_idx + 1], source[left_idx + 2]);
+			let (y1, i1, q1) = rgb_to_yiq(source[center_idx], source[center_idx + 1], source[center_idx + 2]);
+			let (y2, i2, q2) = rgb_to_yiq(source[right_idx], source[right_idx + 1], source[right_idx + 2]);
+
+			let luma = config.luma[0] * y0 + config.luma[1] * y1 + config.luma[2] * y2;
+			let chroma_i = config.chroma_gain * (config.chroma[0] * i0 + config.chroma[1] * i1 + config.chroma[2] * i2);
+			let chroma_q = config.chroma_gain * (config.chroma[0] * q0 + config.chroma[1] * q1 + config.chroma[2] * q2);
+
+			let (r, g, b) = yiq_to_rgb(luma, chroma_i, chroma_q);
+			target[center_idx] = clamp_u8(r * scanline);
+			target[center_idx + 1] = clamp_u8(g * scanline);
+			target[center_idx + 2] = clamp_u8(b * scanline);
+		}
+	}
+}
+
+fn rgb_to_yiq(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
+	let r = r as f32;
+	let g = g as f32;
+	let b = b as f32;
+	let y = 0.299 * r + 0.587 * g + 0.114 * b;
+	let i = 0.596 * r - 0.274 * g - 0.322 * b;
+	let q = 0.211 * r - 0.523 * g + 0.312 * b;
+	(y, i, q)
+}
+
+fn yiq_to_rgb(y: f32, i: f32, q: f32) -> (f32, f32, f32) {
+	let r = y + 0.956 * i + 0.621 * q;
+	let g = y - 0.272 * i - 0.647 * q;
+	let b = y - 1.106 * i + 1.703 * q;
+	(r, g, b)
+}
+
+fn clamp_u8(value: f32) -> u8 {
+	value.max(0.0).min(255.0).round() as u8
 }

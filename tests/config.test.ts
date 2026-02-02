@@ -9,6 +9,7 @@ describe("config", () => {
 			assert.strictEqual(config.enableAudio, DEFAULT_CONFIG.enableAudio);
 			assert.strictEqual(config.renderer, DEFAULT_CONFIG.renderer);
 			assert.strictEqual(config.imageQuality, DEFAULT_CONFIG.imageQuality);
+			assert.strictEqual(config.videoFilter, DEFAULT_CONFIG.videoFilter);
 			assert.strictEqual(config.pixelScale, DEFAULT_CONFIG.pixelScale);
 		});
 
@@ -40,6 +41,16 @@ describe("config", () => {
 		test("defaults invalid imageQuality to balanced", () => {
 			const config = normalizeConfig({ imageQuality: "ultra" });
 			assert.strictEqual(config.imageQuality, "balanced");
+		});
+
+		test("accepts valid videoFilter", () => {
+			const config = normalizeConfig({ videoFilter: "ntsc-composite" });
+			assert.strictEqual(config.videoFilter, "ntsc-composite");
+		});
+
+		test("defaults invalid videoFilter to off", () => {
+			const config = normalizeConfig({ videoFilter: "crt" });
+			assert.strictEqual(config.videoFilter, "off");
 		});
 
 		test("clamps pixelScale to valid range", () => {

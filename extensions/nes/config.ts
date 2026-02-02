@@ -6,6 +6,7 @@ import { normalizePath } from "./paths.js";
 
 export type RendererMode = "image" | "text";
 export type ImageQuality = "balanced" | "high";
+export type VideoFilter = "off" | "ntsc-composite" | "ntsc-svideo" | "ntsc-rgb";
 
 export interface NesConfig {
 	romDir: string;
@@ -13,6 +14,7 @@ export interface NesConfig {
 	enableAudio: boolean;
 	renderer: RendererMode;
 	imageQuality: ImageQuality;
+	videoFilter: VideoFilter;
 	pixelScale: number;
 	keybindings: InputMapping;
 }
@@ -29,6 +31,7 @@ export const DEFAULT_CONFIG: NesConfig = {
 	enableAudio: false,
 	renderer: "image",
 	imageQuality: "balanced",
+	videoFilter: "off",
 	pixelScale: 1.0,
 	keybindings: cloneMapping(DEFAULT_INPUT_MAPPING),
 };
@@ -39,6 +42,7 @@ interface RawConfig {
 	enableAudio?: unknown;
 	renderer?: unknown;
 	imageQuality?: unknown;
+	videoFilter?: unknown;
 	pixelScale?: unknown;
 	keybindings?: unknown;
 }
@@ -68,6 +72,7 @@ export function normalizeConfig(raw: unknown): NesConfig {
 			: saveDirFallback;
 	const saveDir = resolveConfigPath(normalizePath(saveDirInput, saveDirFallback));
 	const imageQuality = normalizeImageQuality(parsed.imageQuality);
+	const videoFilter = normalizeVideoFilter(parsed.videoFilter);
 	const pixelScale = normalizePixelScale(parsed.pixelScale);
 	return {
 		romDir,
@@ -75,6 +80,7 @@ export function normalizeConfig(raw: unknown): NesConfig {
 		enableAudio: typeof parsed.enableAudio === "boolean" ? parsed.enableAudio : DEFAULT_CONFIG.enableAudio,
 		renderer: parsed.renderer === "text" ? "text" : DEFAULT_CONFIG.renderer,
 		imageQuality,
+		videoFilter,
 		pixelScale,
 		keybindings: normalizeKeybindings(parsed.keybindings),
 	};
@@ -134,6 +140,17 @@ function normalizePixelScale(raw: unknown): number {
 
 function normalizeImageQuality(raw: unknown): ImageQuality {
 	return raw === "high" ? "high" : "balanced";
+}
+
+function normalizeVideoFilter(raw: unknown): VideoFilter {
+	switch (raw) {
+		case "ntsc-composite":
+		case "ntsc-svideo":
+		case "ntsc-rgb":
+			return raw;
+		default:
+			return "off";
+	}
 }
 
 function normalizeKeybindings(raw: unknown): InputMapping {

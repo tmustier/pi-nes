@@ -12,6 +12,7 @@ import {
 	loadConfig,
 	normalizeConfig,
 	saveConfig,
+	type VideoFilter,
 } from "./config.js";
 import { displayPath, resolvePathInput } from "./paths.js";
 import { NesSession } from "./nes-session.js";
@@ -177,6 +178,21 @@ async function configureWithWizard(
 
 	const isHighQuality = qualityChoice.startsWith("High");
 	const imageQuality = isHighQuality ? "high" : "balanced";
+
+	const filterOptions: Array<{ label: string; value: VideoFilter }> = [
+		{ label: "Off (default) — raw RGB", value: "off" },
+		{ label: "NTSC Composite — strong bleed + scanlines", value: "ntsc-composite" },
+		{ label: "NTSC S-Video — balanced bleed", value: "ntsc-svideo" },
+		{ label: "NTSC RGB — subtle blur", value: "ntsc-rgb" },
+	];
+	const filterChoice = await ctx.ui.select(
+		"Video filter",
+		filterOptions.map((option) => option.label),
+	);
+	if (!filterChoice) {
+		return false;
+	}
+	const videoFilter = filterOptions.find((option) => option.label === filterChoice)?.value ?? "off";
 	const pixelScale = config.pixelScale;
 
 	const defaultSaveDir = getDefaultSaveDir(config.romDir);
@@ -187,6 +203,7 @@ async function configureWithWizard(
 		romDir,
 		saveDir,
 		imageQuality,
+		videoFilter,
 		pixelScale,
 	});
 	await saveConfig(normalized);
@@ -237,7 +254,7 @@ async function createSession(romPath: string, ctx: ExtensionCommandContext, conf
 
 	let core;
 	try {
-		core = createNesCore({ enableAudio: config.enableAudio });
+		core = createNesCore({ enableAudio: config.enableAudio, videoFilter: config.videoFilter });
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		ctx.ui.notify(`Failed to initialize NES core: ${message}`, "error");

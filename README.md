@@ -62,6 +62,7 @@ Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for quick setup.
   "saveDir": "/roms/nes/saves",
   "renderer": "image",
   "imageQuality": "balanced",
+  "videoFilter": "off",
   "pixelScale": 1.0,
   "keybindings": {
     "up": ["up", "w"],
@@ -84,7 +85,10 @@ Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for quick setup.
 | `saveDir` | `/roms/nes/saves` | Where to store battery saves (defaults to `<romDir>/saves`) |
 | `renderer` | `"image"` | `"image"` (Kitty graphics) or `"text"` (ANSI) |
 | `imageQuality` | `"balanced"` | `"balanced"` (30 fps) or `"high"` (60 fps) |
+| `videoFilter` | `"off"` | `"off"`, `"ntsc-composite"`, `"ntsc-svideo"`, `"ntsc-rgb"` |
 | `pixelScale` | `1.0` | Display scale (0.5–4.0) |
+
+`videoFilter` applies a lightweight CRT/NTSC-inspired pass (horizontal bleed + scanlines). It runs in the native core and is optional.
 
 ## Saves
 

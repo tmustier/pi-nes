@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 
 export type NesButton = "up" | "down" | "left" | "right" | "a" | "b" | "start" | "select";
+export type VideoFilterMode = "off" | "ntsc-composite" | "ntsc-svideo" | "ntsc-rgb";
 
 export interface FrameBuffer {
 	data: Uint8Array;
@@ -51,6 +52,7 @@ export interface NesCore {
 
 export interface CreateNesCoreOptions {
 	enableAudio?: boolean;
+	videoFilter?: VideoFilterMode;
 }
 
 interface NativeNesInstance {
@@ -58,6 +60,7 @@ interface NativeNesInstance {
 	bootup(): void;
 	stepFrame(): void;
 	refreshFramebuffer(): void;
+	setVideoFilter(mode: number): void;
 	pressButton(button: number): void;
 	releaseButton(button: number): void;
 	hasBatteryBackedRam(): boolean;
@@ -101,13 +104,20 @@ const NATIVE_BUTTON_MAP: Record<NesButton, number> = {
 	right: 7,
 };
 
+const NATIVE_VIDEO_FILTER_MAP: Record<VideoFilterMode, number> = {
+	off: 0,
+	"ntsc-composite": 1,
+	"ntsc-svideo": 2,
+	"ntsc-rgb": 3,
+};
+
 class NativeNesCore implements NesCore {
 	private readonly nes: NativeNesInstance;
 	private readonly audioWarning: string | null;
 	private readonly frameBuffer: Uint8Array;
 	private hasSram = false;
 
-	constructor(enableAudio: boolean) {
+	constructor(enableAudio: boolean, videoFilter: VideoFilterMode) {
 		this.audioWarning = enableAudio
 			? "Audio output is disabled (no safe dependency available)."
 			: null;
@@ -116,6 +126,7 @@ class NativeNesCore implements NesCore {
 			throw new Error("Native NES core addon is not available.");
 		}
 		this.nes = new module.NativeNes();
+		this.nes.setVideoFilter(NATIVE_VIDEO_FILTER_MAP[videoFilter]);
 		this.frameBuffer = this.nes.getFramebuffer();
 	}
 
@@ -186,5 +197,5 @@ class NativeNesCore implements NesCore {
 }
 
 export function createNesCore(options: CreateNesCoreOptions = {}): NesCore {
-	return new NativeNesCore(options.enableAudio ?? false);
+	return new NativeNesCore(options.enableAudio ?? false, options.videoFilter ?? "off");
 }
