@@ -271,6 +271,7 @@ impl Ppu {
 			// ppustatus load
 			0x2002 => {
 				let value = self.ppustatus.load();
+				let was_vblank = (value & 0x80) != 0;
 
 				// clear vblank after reading 0x2002
 				self.ppustatus.clear_vblank();
@@ -287,10 +288,9 @@ impl Ppu {
 				// clears the flag, and won't fire NMI
 
 				// Note: update_flags() which can set vblank is called
-				// after this method in the same cycle, so set supress_vblank true
-				// even at cycle=1 not only cycle=0
-
-				if self.scanline == 241 && (self.cycle == 0 || self.cycle == 1) {
+				// after this method in the same cycle. Only suppress if
+				// vblank was already set when read.
+				if was_vblank && self.scanline == 241 && self.cycle == 1 {
 					self.suppress_vblank = true;
 				}
 
@@ -870,7 +870,7 @@ impl Ppu {
 		// the PPU scans through OAM to determine which sprites
 		// to render on the next scanline
 
-		if self.scanline >= 240 {
+		if self.scanline >= 240 && self.scanline != 261 {
 			return;
 		}
 
@@ -886,16 +886,17 @@ impl Ppu {
 		} else if self.cycle == 257 {
 			// Evaluate at a time at cycle 257 due to performance
 			// and simplicity so far
-			self.process_sprite_pixels(rom);
+			let next_scanline = if self.scanline == 261 { 0 } else { self.scanline + 1 };
+			self.process_sprite_pixels(next_scanline, rom);
 		}
 	}
 
-	fn process_sprite_pixels(&mut self, rom: &Rom) {
+	fn process_sprite_pixels(&mut self, scanline: u16, rom: &Rom) {
 		for i in 0..self.sprite_availables.len() {
 			self.sprite_availables[i] = false;
 		}
 
-		let y = self.scanline as u8;
+		let y = scanline as u8;
 		let height = self.ppuctrl.sprite_height();
 		let mut n = 0;
 
