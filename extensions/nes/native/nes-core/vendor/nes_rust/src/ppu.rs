@@ -735,9 +735,13 @@ impl Ppu {
 	fn update_flags(&mut self, rom: &mut Rom) {
 		if self.cycle == 1 {
 			if self.scanline == 241 {
-				// set vblank and occur NMI at cycle 1 in scanline 241
+				// Set vblank and latch NMI at cycle 1 in scanline 241.
+				// NMI delivery is still delayed by CPU instruction timing.
 				if !self.suppress_vblank {
 					self.ppustatus.set_vblank();
+					if self.ppuctrl.is_nmi_enabled() {
+						self.nmi_interrupted = true;
+					}
 				}
 				self.suppress_vblank = false;
 				// Pixels for this frame should be ready so update the display
@@ -748,41 +752,6 @@ impl Ppu {
 				self.ppustatus.clear_vblank();
 				self.ppustatus.clear_zero_hit();
 				self.ppustatus.clear_overflow();
-			}
-		}
-
-		// According to http://wiki.nesdev.com/w/index.php/PPU_frame_timing#VBL_Flag_Timing
-		// reading 0x2002 at cycle=2 and scanline=241 can suppress NMI
-		// so firing NMI at some cycles away not at cycle=1 so far
-
-		// There is a chance that CPU 0x2002 read gets the data vblank flag set
-		// before CPU starts NMI interrupt routine.
-		// CPU instructions take multiple CPU clocks to complete.
-		// If CPU starts an operation of an istruction including 0x2002 read right before
-		// PPU sets vblank flag and fires NMI,
-		// the 0x2002 read gets the data with vblank flag set even before
-		// CPU starts NMI routine.
-		//
-		//    CPU                              PPU
-		// 1. instruction operation start
-		// 2.   - doing something              vblank start and fire NMI
-		// 3.   - read 0x2002 with
-		//        vblank flag set
-		// 4.   - doing something
-		// 5. Notice NMI and start
-		//    NMI routine
-		//
-		// It seems some games rely on this behavior.
-		// To simulate this behavior we fire NMI at cycle=20 so far.
-		// If CPU reads 0x2002 between PPU cycle 3~20 it gets data
-		// vblank flag set before NMI routine.
-		// (reading at cycle 1~2 suppresses NMI, see load_register())
-		// @TODO: Safer and more appropriate approach.
-
-		if self.cycle == 20 && self.scanline == 241 {
-			if self.ppustatus.is_vblank() &&
-				self.ppuctrl.is_nmi_enabled() {
-				self.nmi_interrupted = true;
 			}
 		}
 
