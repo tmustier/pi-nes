@@ -6,7 +6,9 @@
   "types": "index.d.ts",
   "scripts": {
     "build": "napi build --release --dts native.d.ts",
-    "build:debug": "napi build --dts native.d.ts"
+    "build:debug": "napi build --dts native.d.ts",
+    "build:audio": "napi build --release --features audio-cpal --dts native.d.ts",
+    "build:audio:debug": "napi build --features audio-cpal --dts native.d.ts"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.18.2"

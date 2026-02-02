@@ -65,6 +65,7 @@ Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for quick setup.
   "renderer": "image",
   "imageQuality": "balanced",
   "videoFilter": "ntsc-composite",
+  "enableAudio": false,
   "pixelScale": 1.0,
   "keybindings": {
     "up": ["up", "w"],
@@ -88,6 +89,7 @@ Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for quick setup.
 | `renderer` | `"image"` | `"image"` (Kitty graphics) or `"text"` (ANSI) |
 | `imageQuality` | `"balanced"` | `"balanced"` (30 fps) or `"high"` (60 fps) |
 | `videoFilter` | `"ntsc-composite"` | `"off"`, `"ntsc-composite"`, `"ntsc-svideo"`, `"ntsc-rgb"` |
+| `enableAudio` | `false` | Enable audio output (requires native core built with `audio-cpal`) |
 | `pixelScale` | `1.0` | Display scale (0.5–4.0) |
 
 `videoFilter` applies a lightweight CRT/NTSC-inspired pass (horizontal bleed + scanlines). It runs in the native core and is optional.
@@ -109,7 +111,7 @@ Set `"renderer": "text"` if you prefer the ANSI renderer or have display issues.
 
 ## Limitations
 
-- **No audio** — Sound is not currently supported
+- **Audio is opt-in** — Requires building the native core with `audio-cpal` and setting `enableAudio: true`
 - **No auto-save** — Save manually just like you would with the original NES (battery-backed SRAM)
 
 ## Vendored Dependencies
@@ -132,6 +134,9 @@ npm install
 # Build the NES core (required)
 cd extensions/nes/native/nes-core
 npm install && npm run build
+
+# Build the NES core with audio (optional)
+npm run build:audio
 
 # Build shared memory renderer (optional, faster on Kitty)
 cd ../kitty-shm

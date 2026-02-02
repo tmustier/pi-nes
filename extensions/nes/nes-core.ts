@@ -61,6 +61,7 @@ interface NativeNesInstance {
 	stepFrame(): void;
 	refreshFramebuffer(): void;
 	setVideoFilter(mode: number): void;
+	setAudioEnabled(enabled: boolean): boolean;
 	pressButton(button: number): void;
 	releaseButton(button: number): void;
 	hasBatteryBackedRam(): boolean;
@@ -118,15 +119,16 @@ class NativeNesCore implements NesCore {
 	private hasSram = false;
 
 	constructor(enableAudio: boolean, videoFilter: VideoFilterMode) {
-		this.audioWarning = enableAudio
-			? "Audio output is disabled (no safe dependency available)."
-			: null;
 		const module = getNativeModule();
 		if (!module) {
 			throw new Error("Native NES core addon is not available.");
 		}
 		this.nes = new module.NativeNes();
 		this.nes.setVideoFilter(NATIVE_VIDEO_FILTER_MAP[videoFilter]);
+		const audioEnabled = this.nes.setAudioEnabled(enableAudio);
+		this.audioWarning = enableAudio && !audioEnabled
+			? "Audio output unavailable. Rebuild the native core with --features audio-cpal."
+			: null;
 		this.frameBuffer = this.nes.getFramebuffer();
 	}
 
@@ -192,6 +194,7 @@ class NativeNesCore implements NesCore {
 
 	dispose(): void {
 		// No explicit native teardown required; napi instance is GC-managed.
+		this.nes.setAudioEnabled(false);
 		this.hasSram = false;
 	}
 }

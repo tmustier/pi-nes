@@ -32,6 +32,7 @@ export class NativeNes {
   stepFrame(): void;
   refreshFramebuffer(): void;
   setVideoFilter(mode: number): void;
+  setAudioEnabled(enabled: boolean): boolean;
   pressButton(button: number): void;
   releaseButton(button: number): void;
   hasBatteryBackedRam(): boolean;

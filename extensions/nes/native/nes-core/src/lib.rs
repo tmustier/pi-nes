@@ -1,13 +1,52 @@
 use napi::bindgen_prelude::Uint8Array;
 use napi_derive::napi;
+use nes_rust::audio::Audio;
 use nes_rust::button::Button;
+#[cfg(not(feature = "audio-cpal"))]
 use nes_rust::default_audio::DefaultAudio;
 use nes_rust::default_input::DefaultInput;
 use nes_rust::display::{Display, SCREEN_HEIGHT, SCREEN_WIDTH};
 use nes_rust::rom::Rom;
 use nes_rust::Nes;
 
+#[cfg(feature = "audio-cpal")]
+mod audio_cpal;
+#[cfg(feature = "audio-cpal")]
+use audio_cpal::CpalAudio;
+
 const FRAME_BYTE_LEN: usize = (SCREEN_WIDTH * SCREEN_HEIGHT * 3) as usize;
+
+enum AudioBackend {
+	#[cfg(feature = "audio-cpal")]
+	Cpal(CpalAudio),
+	#[cfg(not(feature = "audio-cpal"))]
+	Default,
+}
+
+impl AudioBackend {
+	fn set_enabled(&self, enabled: bool) -> bool {
+		match self {
+			#[cfg(feature = "audio-cpal")]
+			AudioBackend::Cpal(audio) => audio.set_enabled(enabled),
+			#[cfg(not(feature = "audio-cpal"))]
+			AudioBackend::Default => false,
+		}
+	}
+}
+
+fn create_audio_backend() -> (Box<dyn Audio>, AudioBackend) {
+	#[cfg(feature = "audio-cpal")]
+	{
+		let audio = CpalAudio::new();
+		return (Box::new(audio.clone()), AudioBackend::Cpal(audio));
+	}
+
+	#[cfg(not(feature = "audio-cpal"))]
+	{
+		let audio = DefaultAudio::new();
+		return (Box::new(audio), AudioBackend::Default);
+	}
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum VideoFilterMode {
@@ -96,6 +135,7 @@ pub struct NativeNes {
 	framebuffer: Vec<u8>,
 	filter_buffer: Vec<u8>,
 	video_filter: VideoFilterMode,
+	audio_backend: AudioBackend,
 }
 
 #[napi]
@@ -104,13 +144,14 @@ impl NativeNes {
 	pub fn new() -> Self {
 		let input = Box::new(DefaultInput::new());
 		let display = Box::new(NativeDisplay::new());
-		let audio = Box::new(DefaultAudio::new());
+		let (audio, audio_backend) = create_audio_backend();
 		let nes = Nes::new(input, display, audio);
 		Self {
 			nes,
 			framebuffer: vec![0; FRAME_BYTE_LEN],
 			filter_buffer: vec![0; FRAME_BYTE_LEN],
 			video_filter: VideoFilterMode::Off,
+			audio_backend,
 		}
 	}
 
@@ -147,6 +188,11 @@ impl NativeNes {
 			3 => VideoFilterMode::NtscRgb,
 			_ => VideoFilterMode::Off,
 		};
+	}
+
+	#[napi]
+	pub fn set_audio_enabled(&mut self, enabled: bool) -> bool {
+		self.audio_backend.set_enabled(enabled)
 	}
 
 	#[napi]

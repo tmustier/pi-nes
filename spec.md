@@ -76,7 +76,7 @@ pi-nes/
   - `pixelScale` (float, e.g. 1.0)
   - `keybindings` (button-to-keys map, e.g. `{ "a": ["z"] }`)
 
-Note: audio output is currently disabled; setting `enableAudio` will show a warning.
+Note: audio output is opt-in; requires a native core built with `audio-cpal` and `enableAudio: true`.
 
 ## Milestones
 1. Skeleton extension + `/nes` command + overlay renderer
