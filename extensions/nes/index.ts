@@ -291,14 +291,22 @@ async function attachSession(
 	let shouldStop = false;
 	try {
 		const isImageRenderer = config.renderer === "image";
+		const overlayState = isImageRenderer ? { width: undefined as number | undefined } : undefined;
 		const overlayOptions = {
 			overlay: true,
-			overlayOptions: {
-				width: isImageRenderer ? "90%" : "85%",
-				maxHeight: "90%",
-				anchor: "center",
-				margin: { top: 1 },
-			},
+			overlayOptions: isImageRenderer
+				? () => ({
+						width: overlayState?.width ?? "90%",
+						maxHeight: "90%",
+						anchor: "center",
+						margin: { top: 1 },
+					})
+				: {
+						width: "85%",
+						maxHeight: "90%",
+						anchor: "center",
+						margin: { top: 1 },
+					},
 		};
 
 		const renderIntervalMs = config.renderer === "image"
@@ -326,6 +334,7 @@ async function attachSession(
 					debug,
 					() => session.getStats(),
 					"native",
+					overlayState,
 				);
 			},
 			overlayOptions,
