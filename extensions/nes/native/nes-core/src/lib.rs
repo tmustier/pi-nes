@@ -7,11 +7,6 @@ use nes_rust::display::{Display, SCREEN_HEIGHT, SCREEN_WIDTH};
 use nes_rust::rom::Rom;
 use nes_rust::Nes;
 
-#[napi]
-pub fn native_version() -> String {
-	env!("CARGO_PKG_VERSION").to_string()
-}
-
 struct NativeDisplay {
 	pixels: Vec<u8>,
 }
@@ -117,11 +112,6 @@ impl NativeNes {
 	#[napi]
 	pub fn refresh_framebuffer(&mut self) {
 		self.nes.copy_pixels(&mut self.framebuffer);
-	}
-
-	#[napi]
-	pub fn reset(&mut self) {
-		self.nes.reset();
 	}
 
 	#[napi]

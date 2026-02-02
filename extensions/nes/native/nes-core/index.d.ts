@@ -1,5 +1,3 @@
-export function nativeVersion(): string;
-
 export interface CpuDebugState {
   pc: number;
   a: number;
@@ -33,7 +31,6 @@ export class NativeNes {
   bootup(): void;
   stepFrame(): void;
   refreshFramebuffer(): void;
-  reset(): void;
   pressButton(button: number): void;
   releaseButton(button: number): void;
   hasBatteryBackedRam(): boolean;

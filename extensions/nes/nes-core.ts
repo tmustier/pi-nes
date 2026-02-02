@@ -46,7 +46,6 @@ export interface NesCore {
 	markSramSaved(): void;
 	getAudioWarning(): string | null;
 	getDebugState(): NesDebugState | null;
-	reset(): void;
 	dispose(): void;
 }
 
@@ -59,7 +58,6 @@ interface NativeNesInstance {
 	bootup(): void;
 	stepFrame(): void;
 	refreshFramebuffer(): void;
-	reset(): void;
 	pressButton(button: number): void;
 	releaseButton(button: number): void;
 	hasBatteryBackedRam(): boolean;
@@ -179,10 +177,6 @@ class NativeNesCore implements NesCore {
 
 	getDebugState(): NesDebugState | null {
 		return this.nes.getDebugState();
-	}
-
-	reset(): void {
-		this.nes.reset();
 	}
 
 	dispose(): void {}
