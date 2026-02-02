@@ -172,7 +172,7 @@ async function configureWithWizard(
 	const imageQuality = isHighQuality ? "high" : "balanced";
 
 	const filterOptions: Array<{ label: string; value: VideoFilter }> = [
-		{ label: "Sharp — pixel-perfect, no filtering", value: "off" },
+		{ label: "Sharp (default) — pixel-perfect, no filtering", value: "off" },
 		{ label: "CRT Soft — subtle retro look", value: "ntsc-rgb" },
 		{ label: "CRT Classic — authentic scanlines + color bleed", value: "ntsc-composite" },
 	];
