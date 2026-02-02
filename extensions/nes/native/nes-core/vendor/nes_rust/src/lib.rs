@@ -54,7 +54,7 @@ use audio::Audio;
 ///   nes.step_frame();
 ///   nes.copy_pixels(rgba_pixels);
 ///   // Render rgba_pixels
-///   // @TODO: Audio buffer sample code is T.B.D.
+///   // Audio output omitted in this example.
 ///   // Adjust sleep time for your platform
 ///   std::thread::sleep(Duration::from_millis(1));
 /// }

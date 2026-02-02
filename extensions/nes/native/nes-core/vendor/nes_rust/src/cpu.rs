@@ -41,7 +41,7 @@ fn to_joypad_button(button: button::Button) -> joypad::Button {
 		button::Button::Joypad2Right => joypad::Button::Right,
 		button::Button::Start => joypad::Button::Start,
 		button::Button::Select => joypad::Button::Select,
-		_ => joypad::Button::A // dummy @TODO: Throw an error?
+		_ => unreachable!("Unhandled button mapping")
 	}
 }
 
@@ -1365,7 +1365,6 @@ impl Cpu {
 		}
 	}
 
-	// @TODO: Clean up if needed
 	fn operate(&mut self, op: &Operation) {
 		match op.instruction_type {
 			InstructionTypes::ADC => {
@@ -1528,7 +1527,7 @@ impl Cpu {
 				self.update_z(result);
 			},
 			InstructionTypes::INV => {
-				// @TODO: Throw?
+				// Illegal opcode placeholder (treated as NOP for now).
 				println!("INV operation");
 			},
 			InstructionTypes::INX | InstructionTypes::INY => {
@@ -1892,8 +1891,6 @@ impl Cpu {
 			self.apu.store_register(address, value);
 		}
 
-		// @TODO: clean up
-
 		if address == 0x4014 {
 			self.ppu.store_register(address, value, &mut self.rom);
 
@@ -2113,7 +2110,7 @@ impl Cpu {
 				effective_address
 			},
 			_ => {
-				// @TODO: Throw?
+				// Unknown addressing mode; returning 0 as a fallback.
 				println!("Unknown addressing mode.");
 				0
 			}

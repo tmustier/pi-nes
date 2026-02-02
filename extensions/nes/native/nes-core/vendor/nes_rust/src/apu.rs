@@ -90,7 +90,6 @@ impl Apu {
 			self.pulse1.drive_timer();
 			self.pulse2.drive_timer();
 			self.noise.drive_timer();
-			// @TODO: Add note
 			if self.dmc.drive_timer(dmc_sample_data) {
 				self.dmc_irq_active = true;
 			}
@@ -397,7 +396,7 @@ impl ApuPulse {
 				self.timer_sequence = 0;
 				self.envelope_start_flag = true;
 			},
-			_ => {} // @TODO: Throw an error?
+			_ => {} // Invalid register: no-op.
 		};
 	}
 
@@ -609,7 +608,7 @@ impl ApuTriangle {
 
 				self.linear_reload_flag = true;
 			},
-			_ => {} // @TODO: Throw an error?
+			_ => {} // Invalid register: no-op.
 		};
 	}
 
@@ -772,7 +771,7 @@ impl ApuNoise {
 
 				self.envelope_start_flag = true;
 			},
-			_ => {} // @TODO: Throw an error?
+			_ => {} // Invalid register: no-op.
 		};
 	}
 
@@ -946,7 +945,7 @@ impl ApuDmc {
 				self.register3.store(value);
 				self.remaining_bytes_counter = ((self.sample_length() as u16) << 4) | 1;
 			},
-			_ => {} // @TODO
+			_ => {} // Invalid register: no-op.
 		}
 	}
 
