@@ -71,15 +71,6 @@ async function selectRom(
 			return null;
 		}
 		return filteredRoms[index]?.path ?? null;
-		if (!selection) {
-			return null;
-		}
-		const index = options.indexOf(selection);
-		if (index < 0) {
-			ctx.ui.notify("ROM selection failed. Please try again.", "error");
-			return null;
-		}
-		return roms[index]?.path ?? null;
 	} catch {
 		ctx.ui.notify(`Failed to read ROM directory: ${romDir}. Update ${configPath} to set romDir.`, "error");
 		return null;
