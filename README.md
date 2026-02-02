@@ -110,7 +110,7 @@ Set `"renderer": "text"` if you prefer the ANSI renderer or have display issues.
 ## Limitations
 
 - **No audio** — Sound is not currently supported
-- **No save states** — Only battery-backed SRAM saves work
+- **No auto-save** — Save manually just like you would with the original NES (battery-backed SRAM)
 
 ## Vendored Dependencies
 
