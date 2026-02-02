@@ -24,16 +24,3 @@ export async function listRoms(romDir: string): Promise<RomEntry[]> {
 		.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function resolveRomPath(args: string | undefined, romDir: string): Promise<string | null> {
-	const trimmed = args?.trim();
-	if (trimmed && trimmed.length > 0) {
-		return path.resolve(trimmed);
-	}
-
-	try {
-		const roms = await listRoms(romDir);
-		return roms.length > 0 ? roms[0]?.path ?? null : null;
-	} catch {
-		return null;
-	}
-}

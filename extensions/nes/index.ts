@@ -101,20 +101,6 @@ async function ensureRomDir(pathValue: string, ctx: ExtensionCommandContext): Pr
 	}
 }
 
-async function validateRomDir(pathValue: string, ctx: ExtensionCommandContext): Promise<boolean> {
-	try {
-		const stat = await fs.stat(pathValue);
-		if (!stat.isDirectory()) {
-			ctx.ui.notify(`ROM directory is not a folder: ${pathValue}`, "error");
-			return false;
-		}
-		return true;
-	} catch {
-		ctx.ui.notify(`ROM directory not found: ${pathValue}`, "error");
-		return false;
-	}
-}
-
 async function editConfigJson(
 	ctx: ExtensionCommandContext,
 	config: Awaited<ReturnType<typeof loadConfig>>,

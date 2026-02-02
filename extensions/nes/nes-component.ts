@@ -2,7 +2,7 @@ import type { Component, TUI } from "@mariozechner/pi-tui";
 import { isKeyRelease, matchesKey, truncateToWidth } from "@mariozechner/pi-tui";
 import type { InputMapping } from "./input-map.js";
 import { DEFAULT_INPUT_MAPPING, getMappedButtons } from "./input-map.js";
-import type { FrameBuffer, NesCore } from "./nes-core.js";
+import type { FrameBuffer, NesButton, NesCore } from "./nes-core.js";
 import type { NesSessionStats } from "./nes-session.js";
 import type { RendererMode } from "./renderer.js";
 import { NesImageRenderer } from "./renderer.js";
@@ -80,7 +80,8 @@ function averageBlock(
 export class NesOverlayComponent implements Component {
 	wantsKeyRelease = true;
 	private readonly inputMapping: InputMapping;
-	private readonly tapTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	private readonly tapTimers = new Map<"start" | "select", ReturnType<typeof setTimeout>>();
+	private readonly heldButtons = new Set<NesButton>();
 	private readonly imageRenderer = new NesImageRenderer();
 	private readonly rendererMode: RendererMode;
 	private readonly pixelScale: number;
@@ -115,11 +116,13 @@ export class NesOverlayComponent implements Component {
 	handleInput(data: string): void {
 		const released = isKeyRelease(data);
 		if (!released && matchesKey(data, "ctrl+q")) {
+			this.releaseAllButtons();
 			this.cleanupImage();
 			this.onDetach();
 			return;
 		}
 		if (!released && (matchesKey(data, "q") || matchesKey(data, "shift+q"))) {
+			this.releaseAllButtons();
 			this.cleanupImage();
 			this.onQuit();
 			return;
@@ -136,6 +139,11 @@ export class NesOverlayComponent implements Component {
 					this.tapButton(button);
 				}
 				continue;
+			}
+			if (released) {
+				this.heldButtons.delete(button);
+			} else {
+				this.heldButtons.add(button);
 			}
 			this.core.setButton(button, !released);
 		}
@@ -186,11 +194,8 @@ export class NesOverlayComponent implements Component {
 	invalidate(): void {}
 
 	dispose(): void {
+		this.releaseAllButtons();
 		this.cleanupImage();
-		for (const timer of this.tapTimers.values()) {
-			clearTimeout(timer);
-		}
-		this.tapTimers.clear();
 	}
 
 	private cleanupImage(): void {
@@ -199,6 +204,18 @@ export class NesOverlayComponent implements Component {
 		}
 		this.imageRenderer.dispose(this.tui);
 		this.imageCleared = true;
+	}
+
+	private releaseAllButtons(): void {
+		for (const button of this.heldButtons) {
+			this.core.setButton(button, false);
+		}
+		this.heldButtons.clear();
+		for (const [button, timer] of this.tapTimers.entries()) {
+			clearTimeout(timer);
+			this.core.setButton(button, false);
+		}
+		this.tapTimers.clear();
 	}
 
 	private buildDebugLines(): string[] {
