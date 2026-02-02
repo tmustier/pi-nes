@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext, Theme } from "@mariozechner/pi-coding-agent";
+import { DynamicBorder, getSettingsListTheme } from "@mariozechner/pi-coding-agent";
+import { Container, SettingsList, Spacer, Text, type SettingItem } from "@mariozechner/pi-tui";
 import { NesOverlayComponent } from "./nes-component.js";
 import { createNesCore } from "./nes-core.js";
 import {
@@ -12,6 +14,7 @@ import {
 	loadConfig,
 	normalizeConfig,
 	saveConfig,
+	type NesConfig,
 	type VideoFilter,
 } from "./config.js";
 import { displayPath, resolvePathInput } from "./paths.js";
@@ -203,12 +206,89 @@ async function configureWithWizard(
 	return true;
 }
 
+type ConfigMenuResult = "close" | "more";
+
+class NesConfigMenu extends Container {
+	private readonly settingsList: SettingsList;
+
+	constructor(
+		config: NesConfig,
+		theme: Theme,
+		onAudioChange: (enabled: boolean) => void,
+		onDone: (result: ConfigMenuResult) => void,
+	) {
+		super();
+		const audioValue = config.enableAudio ? "on" : "off (default)";
+		const items: SettingItem[] = [
+			{
+				id: "audio",
+				label: "Audio",
+				description: "Enable audio output (requires native core built with audio-cpal)",
+				currentValue: audioValue,
+				values: ["off (default)", "on"],
+			},
+			{
+				id: "more",
+				label: "More settings",
+				description: "Quick setup, advanced JSON, or reset defaults",
+				currentValue: "Open",
+				values: ["Open"],
+			},
+		];
+
+		this.settingsList = new SettingsList(
+			items,
+			6,
+			getSettingsListTheme(),
+			(id, value) => {
+				if (id === "audio") {
+					onAudioChange(value === "on");
+					return;
+				}
+				if (id === "more") {
+					onDone("more");
+				}
+			},
+			() => onDone("close"),
+		);
+
+		this.addChild(new DynamicBorder());
+		this.addChild(new Text(theme.bold(theme.fg("accent", "NES config")), 1, 0));
+		this.addChild(new Spacer(1));
+		this.addChild(this.settingsList);
+		this.addChild(new Spacer(1));
+		this.addChild(new DynamicBorder());
+	}
+
+	handleInput(data: string): void {
+		this.settingsList.handleInput(data);
+	}
+}
+
 async function editConfig(ctx: ExtensionCommandContext): Promise<void> {
 	if (!ctx.hasUI) {
 		ctx.ui.notify("NES config requires interactive mode", "error");
 		return;
 	}
 	const config = await loadConfig();
+	const action = await ctx.ui.custom<ConfigMenuResult>((_tui, theme, _keybindings, done) =>
+		new NesConfigMenu(
+			config,
+			theme,
+			(enabled) => {
+				void (async () => {
+					const normalized = normalizeConfig({ ...config, enableAudio: enabled });
+					await saveConfig(normalized);
+					config.enableAudio = normalized.enableAudio;
+					ctx.ui.notify(`Saved config to ${getConfigPath()}`, "info");
+				})();
+			},
+			done,
+		),
+	);
+	if (action !== "more") {
+		return;
+	}
 	const choice = await ctx.ui.select("NES configuration", [
 		"Quick setup",
 		"Advanced (edit config JSON)",

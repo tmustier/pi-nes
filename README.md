@@ -52,11 +52,12 @@ On first run, you'll be prompted to set your ROM directory and display quality. 
 | `/nes` | Pick a ROM or reattach to running session |
 | `/nes <path>` | Load a specific ROM file |
 | `/nes config` | Configure ROM directory and quality |
+| `/nes-config` | Toggle audio + access advanced config options |
 | `/nes debug` | Show FPS and memory stats |
 
 ## Configuration
 
-Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for quick setup.
+Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for quick setup, or `/nes-config` to toggle audio inline and access advanced options.
 
 ```json
 {
