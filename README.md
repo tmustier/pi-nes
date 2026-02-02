@@ -86,6 +86,12 @@ Config is stored at `~/.pi/nes/config.json`. Use `/nes config` for quick setup.
 | `imageQuality` | `"balanced"` | `"balanced"` (30 fps) or `"high"` (60 fps) |
 | `pixelScale` | `1.0` | Display scale (0.5–4.0) |
 
+## Saves
+
+Battery-backed SRAM is saved to `<saveDir>/<rom-name>-<hash>.sav` where the hash is derived from the full ROM path to avoid collisions. Old `<rom-name>.sav` files are ignored.
+
+Saves are flushed on quit and periodically during play.
+
 ## Terminal Support
 
 **Best experience:** a Kitty-protocol terminal like Ghostty, Kitty, or WezTerm (image protocol + key-up events).

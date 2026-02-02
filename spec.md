@@ -60,7 +60,8 @@ pi-nes/
 - Use `isKeyRelease()` for clean key‑up events.
 
 ## Saves
-- Store SRAM at `<saveDir>/<rom-name>.sav` (default `/roms/nes/saves`).
+- Store SRAM at `<saveDir>/<rom-name>-<hash>.sav` (default `/roms/nes/saves`).
+- Hash is derived from the full ROM path to avoid collisions; old `<rom-name>.sav` files are ignored.
 - Load SRAM on ROM start.
 - Persist on exit and periodically (e.g., every 5–10 seconds).
 
