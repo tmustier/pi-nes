@@ -20,7 +20,7 @@ pi install git:github.com/tmustier/pi-nes
 /nes ~/roms/smb.nes   # Load a specific ROM
 ```
 
-On first run, you'll be prompted to set your ROM directory and display quality. When launching `/nes` without a path, you can type an exact ROM name to jump straight to it.
+On first run, you'll be prompted to set your ROM directory and display quality. When launching `/nes` without a path, you can optionally enter a filter string to narrow the ROM list.
 
 ## Controls
 

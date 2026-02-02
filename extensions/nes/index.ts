@@ -45,22 +45,32 @@ async function selectRom(
 			return null;
 		}
 
-		const searchInput = await ctx.ui.input("Search ROM name (exact match, leave blank to browse)", "");
-		if (searchInput === undefined) {
+		const filterInput = await ctx.ui.input("Filter ROM list (optional)", "");
+		if (filterInput === undefined) {
 			return null;
 		}
-		const trimmedSearch = searchInput.trim();
-		if (trimmedSearch) {
-			const needle = trimmedSearch.toLowerCase();
-			const match = roms.find((rom) => rom.name.toLowerCase() === needle);
-			if (match) {
-				return match.path;
+		const trimmedFilter = filterInput.trim();
+		let filteredRoms = roms;
+		if (trimmedFilter) {
+			const needle = trimmedFilter.toLowerCase();
+			filteredRoms = roms.filter((rom) => rom.name.toLowerCase().includes(needle));
+			if (filteredRoms.length === 0) {
+				ctx.ui.notify(`No ROMs match "${trimmedFilter}".`, "warning");
+				return null;
 			}
-			ctx.ui.notify(`No ROM named "${trimmedSearch}". Showing full list.`, "warning");
 		}
 
-		const options = roms.map((rom, index) => `${index + 1}. ${rom.name}`);
+		const options = filteredRoms.map((rom, index) => `${index + 1}. ${rom.name}`);
 		const selection = await ctx.ui.select("Select a ROM", options);
+		if (!selection) {
+			return null;
+		}
+		const index = options.indexOf(selection);
+		if (index < 0) {
+			ctx.ui.notify("ROM selection failed. Please try again.", "error");
+			return null;
+		}
+		return filteredRoms[index]?.path ?? null;
 		if (!selection) {
 			return null;
 		}
