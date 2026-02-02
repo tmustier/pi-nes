@@ -145,7 +145,7 @@ export class NesImageRenderer {
 			columns,
 			rows,
 			imageId: this.imageId,
-			zIndex: -1,
+			zIndex: 0,
 		});
 
 		const lines: string[] = [];
@@ -186,7 +186,7 @@ export class NesImageRenderer {
 					columns,
 					rows,
 					imageId: this.imageId,
-					zIndex: -1,
+					zIndex: 0,
 				}),
 				columns,
 				rows,
