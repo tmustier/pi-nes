@@ -5,7 +5,7 @@ import { DEFAULT_INPUT_MAPPING, getMappedButtons } from "./input-map.js";
 import type { NesButton, FrameBuffer, NesCore } from "./nes-core.js";
 import type { NesSessionStats } from "./nes-session.js";
 import type { RendererMode } from "./config.js";
-import { FRAME_HEIGHT, FRAME_WIDTH, NesImageRenderer, getImageOverlayWidth } from "./renderer.js";
+import { FRAME_HEIGHT, FRAME_WIDTH, NesImageRenderer } from "./renderer.js";
 
 function readRgb(frameBuffer: FrameBuffer, index: number): [number, number, number] {
 	const data = frameBuffer.data;
@@ -86,7 +86,6 @@ export class NesOverlayComponent implements Component {
 	private readonly debug: boolean;
 	private readonly statsProvider?: () => NesSessionStats;
 	private readonly debugLabel?: string;
-	private readonly overlayState?: { width?: number };
 	private imageCleared = false;
 
 	constructor(
@@ -101,7 +100,6 @@ export class NesOverlayComponent implements Component {
 		debug = false,
 		statsProvider?: () => NesSessionStats,
 		debugLabel?: string,
-		overlayState?: { width?: number },
 	) {
 		this.inputMapping = inputMapping;
 		this.rendererMode = rendererMode;
@@ -110,11 +108,6 @@ export class NesOverlayComponent implements Component {
 		this.debug = debug;
 		this.statsProvider = statsProvider;
 		this.debugLabel = debugLabel;
-		this.overlayState = overlayState;
-		if (this.overlayState && this.rendererMode === "image") {
-			const footerRows = this.debug ? 1 + this.buildDebugLines().length : 1;
-			this.overlayState.width = getImageOverlayWidth(this.tui, footerRows, this.pixelScale);
-		}
 	}
 
 	handleInput(data: string): void {

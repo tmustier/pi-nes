@@ -46,16 +46,6 @@ function getKittyShmModule(): KittyShmModule | null {
 	return kittyShmModule;
 }
 
-export function getImageOverlayWidth(tui: TUI, footerRows: number, pixelScale: number): number {
-	const widthCells = Math.max(1, tui.terminal.columns);
-	if (getCapabilities().images === "kitty") {
-		const { columns } = computeKittyLayout(tui, widthCells, footerRows, pixelScale);
-		return columns;
-	}
-	const { maxWidthCells } = computePngLayout(tui, widthCells, footerRows, pixelScale);
-	return maxWidthCells;
-}
-
 export class NesImageRenderer {
 
 	private readonly imageId = allocateImageId();
