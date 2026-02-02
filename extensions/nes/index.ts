@@ -14,6 +14,7 @@ import {
 	loadConfig,
 	normalizeConfig,
 	saveConfig,
+	type ImageQuality,
 	type NesConfig,
 	type VideoFilter,
 } from "./config.js";
@@ -26,6 +27,17 @@ import { loadSram } from "./saves.js";
 const IMAGE_RENDER_INTERVAL_BALANCED_MS = 1000 / 30;
 const IMAGE_RENDER_INTERVAL_HIGH_MS = 1000 / 60;
 const TEXT_RENDER_INTERVAL_MS = 1000 / 60;
+
+const AUDIO_OPTIONS = ["off (default)", "on"] as const;
+const QUALITY_OPTIONS: Array<{ label: string; value: ImageQuality }> = [
+	{ label: "Balanced (default) — 30 fps", value: "balanced" },
+	{ label: "High — 60 fps", value: "high" },
+];
+const DISPLAY_FILTER_OPTIONS: Array<{ label: string; value: VideoFilter }> = [
+	{ label: "CRT Classic (default) — authentic scanlines + color bleed", value: "ntsc-composite" },
+	{ label: "CRT Soft — subtle retro look", value: "ntsc-rgb" },
+	{ label: "Sharp — pixel-perfect, no filtering", value: "off" },
+];
 
 let activeSession: NesSession | null = null;
 
@@ -163,31 +175,13 @@ async function configureWithWizard(
 		}
 	}
 
-	const qualityChoice = await ctx.ui.select("Quality", [
-		"Balanced (recommended) — 30 fps",
-		"High — 60 fps",
-	]);
-	if (!qualityChoice) {
+	const audioChoice = await ctx.ui.select("Audio", ["Off (default)", "On"]);
+	if (!audioChoice) {
 		return false;
 	}
-
-	const isHighQuality = qualityChoice.startsWith("High");
-	const imageQuality = isHighQuality ? "high" : "balanced";
-
-	const filterOptions: Array<{ label: string; value: VideoFilter }> = [
-		{ label: "CRT Classic (default) — authentic scanlines + color bleed", value: "ntsc-composite" },
-		{ label: "CRT Soft — subtle retro look", value: "ntsc-rgb" },
-		{ label: "Sharp — pixel-perfect, no filtering", value: "off" },
-	];
-	const filterChoice = await ctx.ui.select(
-		"Display style",
-		filterOptions.map((option) => option.label),
-	);
-	if (!filterChoice) {
-		return false;
-	}
-	const videoFilter =
-		filterOptions.find((option) => option.label === filterChoice)?.value ?? DEFAULT_CONFIG.videoFilter;
+	const enableAudio = audioChoice === "On";
+	const imageQuality = config.imageQuality;
+	const videoFilter = config.videoFilter;
 	const pixelScale = config.pixelScale;
 
 	const defaultSaveDir = getDefaultSaveDir(config.romDir);
@@ -197,16 +191,23 @@ async function configureWithWizard(
 		...config,
 		romDir,
 		saveDir,
+		enableAudio,
 		imageQuality,
 		videoFilter,
 		pixelScale,
 	});
 	await saveConfig(normalized);
 	ctx.ui.notify(`Saved config to ${getConfigPath()}`, "info");
+	await ctx.ui.select(
+		"Toggle audio, quality, and more in /nes-config",
+		["Run /nes to load your games"],
+	);
 	return true;
 }
 
 type ConfigMenuResult = "close" | "more";
+
+type ConfigUpdate = Partial<NesConfig>;
 
 class NesConfigMenu extends Container {
 	private readonly settingsList: SettingsList;
@@ -214,18 +215,38 @@ class NesConfigMenu extends Container {
 	constructor(
 		config: NesConfig,
 		theme: Theme,
-		onAudioChange: (enabled: boolean) => void,
+		onUpdate: (update: ConfigUpdate) => void,
 		onDone: (result: ConfigMenuResult) => void,
 	) {
 		super();
 		const audioValue = config.enableAudio ? "on" : "off (default)";
+		const qualityValue =
+			QUALITY_OPTIONS.find((option) => option.value === config.imageQuality)?.label
+			?? QUALITY_OPTIONS[0].label;
+		const displayValue =
+			DISPLAY_FILTER_OPTIONS.find((option) => option.value === config.videoFilter)?.label
+			?? DISPLAY_FILTER_OPTIONS[0].label;
 		const items: SettingItem[] = [
 			{
 				id: "audio",
 				label: "Audio",
 				description: "Enable audio output (requires native core built with audio-cpal)",
 				currentValue: audioValue,
-				values: ["off (default)", "on"],
+				values: [...AUDIO_OPTIONS],
+			},
+			{
+				id: "quality",
+				label: "Quality",
+				description: "Target frame rate for image rendering",
+				currentValue: qualityValue,
+				values: QUALITY_OPTIONS.map((option) => option.label),
+			},
+			{
+				id: "display",
+				label: "Display style",
+				description: "CRT filter preset (applied in the native core)",
+				currentValue: displayValue,
+				values: DISPLAY_FILTER_OPTIONS.map((option) => option.label),
 			},
 			{
 				id: "more",
@@ -238,11 +259,21 @@ class NesConfigMenu extends Container {
 
 		this.settingsList = new SettingsList(
 			items,
-			6,
+			8,
 			getSettingsListTheme(),
 			(id, value) => {
 				if (id === "audio") {
-					onAudioChange(value === "on");
+					onUpdate({ enableAudio: value === "on" });
+					return;
+				}
+				if (id === "quality") {
+					const option = QUALITY_OPTIONS.find((entry) => entry.label === value);
+					onUpdate({ imageQuality: option?.value ?? config.imageQuality });
+					return;
+				}
+				if (id === "display") {
+					const option = DISPLAY_FILTER_OPTIONS.find((entry) => entry.label === value);
+					onUpdate({ videoFilter: option?.value ?? config.videoFilter });
 					return;
 				}
 				if (id === "more") {
@@ -271,20 +302,14 @@ async function editConfig(ctx: ExtensionCommandContext): Promise<void> {
 		return;
 	}
 	const config = await loadConfig();
+	const updateConfig = async (update: ConfigUpdate) => {
+		const normalized = normalizeConfig({ ...config, ...update });
+		await saveConfig(normalized);
+		Object.assign(config, normalized);
+		ctx.ui.notify(`Saved config to ${getConfigPath()}`, "info");
+	};
 	const action = await ctx.ui.custom<ConfigMenuResult>((_tui, theme, _keybindings, done) =>
-		new NesConfigMenu(
-			config,
-			theme,
-			(enabled) => {
-				void (async () => {
-					const normalized = normalizeConfig({ ...config, enableAudio: enabled });
-					await saveConfig(normalized);
-					config.enableAudio = normalized.enableAudio;
-					ctx.ui.notify(`Saved config to ${getConfigPath()}`, "info");
-				})();
-			},
-			done,
-		),
+		new NesConfigMenu(config, theme, (update) => void updateConfig(update), done),
 	);
 	if (action !== "more") {
 		return;
