@@ -111,6 +111,10 @@ export class NesOverlayComponent implements Component {
 		this.statsProvider = statsProvider;
 		this.debugLabel = debugLabel;
 		this.overlayState = overlayState;
+		if (this.overlayState && this.rendererMode === "image") {
+			const footerRows = this.debug ? 1 + this.buildDebugLines().length : 1;
+			this.overlayState.width = getImageOverlayWidth(this.tui, footerRows, this.pixelScale);
+		}
 	}
 
 	handleInput(data: string): void {
@@ -160,7 +164,6 @@ export class NesOverlayComponent implements Component {
 		const footerRows = this.debug ? 1 + debugLines.length : 1;
 
 		if (this.rendererMode === "image") {
-			this.updateOverlayWidth(footerRows);
 			const lines = this.renderImage(frameBuffer, width, footerRows);
 			return this.appendFooter(lines, width, debugLines, footer, "");
 		}
@@ -185,16 +188,6 @@ export class NesOverlayComponent implements Component {
 			this.pixelScale,
 			!this.windowed,
 		);
-	}
-
-	private updateOverlayWidth(footerRows: number): void {
-		if (!this.overlayState) {
-			return;
-		}
-		const width = getImageOverlayWidth(this.tui, footerRows, this.pixelScale);
-		if (this.overlayState.width !== width) {
-			this.overlayState.width = width;
-		}
 	}
 
 	private renderText(
