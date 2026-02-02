@@ -1009,7 +1009,7 @@ impl Ppu {
 		// read from the grey column 0x00, 0x10, 0x20, or 0x30
 		let mask = match self.ppumask.is_greyscale() {
 			true => 0x30,
-			false => 0xFF
+			false => 0x3F
 		};
 		PALETTES[(address & mask) as usize] & 0xFFFFFF
 	}

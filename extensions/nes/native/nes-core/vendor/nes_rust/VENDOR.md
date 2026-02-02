@@ -9,9 +9,9 @@
 - Purpose: carry project-specific fixes and act as upstream-of-record for this vendor copy.
 
 ## Current Vendor Snapshot
-- Source commit/tag: `fd5cf3b` (fork master)
+- Source commit/tag: `a69898b` (fork master)
 - Vendored on: 2026-02-02
-- Local patch set: SRAM helpers, CHR RAM support, mapper fixes, PPU timing tweaks, debug hooks.
+- Local patch set: SRAM helpers, CHR RAM support, mapper fixes, PPU timing tweaks, debug hooks, palette index clamp.
 
 ## Update Process
 1. Sync fork with upstream if needed.
