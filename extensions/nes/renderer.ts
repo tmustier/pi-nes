@@ -145,6 +145,11 @@ export class NesImageRenderer {
 		const layout = computeKittyLayout(tui, widthCells, footerRows, pixelScale);
 		const { availableRows, columns, rows, padLeft } = layout;
 
+		const hash = hashFrame(frameBuffer, FRAME_WIDTH, FRAME_HEIGHT);
+		if (this.lastFrameHash === hash && this.lastLines.length > 0) {
+			return [...this.lastLines];
+		}
+
 		this.fillRawBufferTarget(frameBuffer, shared.buffer);
 		const base64Name = Buffer.from(shared.name).toString("base64");
 		const sequence = encodeKittyRawSharedMemory(base64Name, {
@@ -167,7 +172,10 @@ export class NesImageRenderer {
 		lines.push(`${moveUp}${sequence}${marker}`);
 
 		const padded = applyHorizontalPadding(lines, padLeft);
-		return padToHeight ? centerLines(padded, availableRows) : padded;
+		const result = padToHeight ? centerLines(padded, availableRows) : padded;
+		this.lastFrameHash = hash;
+		this.lastLines = [...result];
+		return result;
 	}
 
 	private renderKittyRaw(
@@ -180,6 +188,11 @@ export class NesImageRenderer {
 	): string[] {
 		const layout = computeKittyLayout(tui, widthCells, footerRows, pixelScale);
 		const { availableRows, columns, rows, padLeft } = layout;
+
+		const hash = hashFrame(frameBuffer, FRAME_WIDTH, FRAME_HEIGHT);
+		if (this.lastFrameHash === hash && this.lastLines.length > 0) {
+			return [...this.lastLines];
+		}
 
 		try {
 			this.fillRawBuffer(frameBuffer);
@@ -217,7 +230,10 @@ export class NesImageRenderer {
 		lines.push(`${moveUp}${cached.sequence}${marker}`);
 
 		const padded = applyHorizontalPadding(lines, padLeft);
-		return padToHeight ? centerLines(padded, availableRows) : padded;
+		const result = padToHeight ? centerLines(padded, availableRows) : padded;
+		this.lastFrameHash = hash;
+		this.lastLines = [...result];
+		return result;
 	}
 
 	private renderPng(
