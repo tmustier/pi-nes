@@ -47,17 +47,26 @@ export function getConfigPath(): string {
 	return path.join(os.homedir(), ".pi", "nes", "config.json");
 }
 
+function resolveConfigPath(value: string): string {
+	if (path.isAbsolute(value)) {
+		return value;
+	}
+	return path.resolve(path.dirname(getConfigPath()), value);
+}
+
 export function normalizeConfig(raw: unknown): NesConfig {
 	const parsed = typeof raw === "object" && raw !== null ? (raw as RawConfig) : {};
-	const romDir =
+	const romDirInput =
 		typeof parsed.romDir === "string" && parsed.romDir.length > 0
-			? normalizePath(parsed.romDir, DEFAULT_CONFIG.romDir)
+			? parsed.romDir
 			: DEFAULT_CONFIG.romDir;
+	const romDir = resolveConfigPath(normalizePath(romDirInput, DEFAULT_CONFIG.romDir));
 	const saveDirFallback = getDefaultSaveDir(romDir);
-	const saveDir =
+	const saveDirInput =
 		typeof parsed.saveDir === "string" && parsed.saveDir.length > 0
-			? normalizePath(parsed.saveDir, saveDirFallback)
+			? parsed.saveDir
 			: saveDirFallback;
+	const saveDir = resolveConfigPath(normalizePath(saveDirInput, saveDirFallback));
 	const imageQuality = normalizeImageQuality(parsed.imageQuality);
 	const pixelScale = normalizePixelScale(parsed.pixelScale);
 	return {
@@ -80,7 +89,12 @@ export async function loadConfig(): Promise<NesConfig> {
 	let config: NesConfig;
 	try {
 		const raw = await fs.readFile(configPath, "utf8");
-		config = normalizeConfig(JSON.parse(raw));
+		const parsed = JSON.parse(raw);
+		const normalized = normalizeConfig(parsed);
+		if (raw.trim() !== formatConfig(normalized)) {
+			await saveConfig(normalized);
+		}
+		config = normalized;
 	} catch {
 		config = DEFAULT_CONFIG;
 	}
