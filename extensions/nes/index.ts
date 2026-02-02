@@ -172,13 +172,12 @@ async function configureWithWizard(
 	const imageQuality = isHighQuality ? "high" : "balanced";
 
 	const filterOptions: Array<{ label: string; value: VideoFilter }> = [
-		{ label: "Off (default) — raw RGB", value: "off" },
-		{ label: "NTSC Composite — strong bleed + scanlines", value: "ntsc-composite" },
-		{ label: "NTSC S-Video — balanced bleed", value: "ntsc-svideo" },
-		{ label: "NTSC RGB — subtle blur", value: "ntsc-rgb" },
+		{ label: "Sharp — pixel-perfect, no filtering", value: "off" },
+		{ label: "CRT Soft — subtle retro look", value: "ntsc-rgb" },
+		{ label: "CRT Classic — authentic scanlines + color bleed", value: "ntsc-composite" },
 	];
 	const filterChoice = await ctx.ui.select(
-		"Video filter",
+		"Display style",
 		filterOptions.map((option) => option.label),
 	);
 	if (!filterChoice) {
