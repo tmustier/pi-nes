@@ -24,6 +24,7 @@ const TEXT_RENDER_INTERVAL_MS = 1000 / 60;
 
 let activeSession: NesSession | null = null;
 
+// ROM selection helpers.
 async function selectRom(
 	args: string | undefined,
 	romDir: string,
@@ -60,6 +61,7 @@ async function selectRom(
 	}
 }
 
+// Command argument parsing.
 function parseArgs(args?: string): { debug: boolean; romArg?: string } {
 	if (!args) {
 		return { debug: false, romArg: undefined };
@@ -81,6 +83,7 @@ function parseArgs(args?: string): { debug: boolean; romArg?: string } {
 	return { debug: false, romArg: trimmed };
 }
 
+// ROM directory validation/creation.
 async function ensureRomDir(pathValue: string, ctx: ExtensionCommandContext): Promise<boolean> {
 	try {
 		const stat = await fs.stat(pathValue);
@@ -101,6 +104,7 @@ async function ensureRomDir(pathValue: string, ctx: ExtensionCommandContext): Pr
 	}
 }
 
+// Config UI.
 async function editConfigJson(
 	ctx: ExtensionCommandContext,
 	config: Awaited<ReturnType<typeof loadConfig>>,
@@ -221,6 +225,7 @@ async function editConfig(ctx: ExtensionCommandContext): Promise<void> {
 	ctx.ui.notify(`Saved config to ${getConfigPath()}`, "info");
 }
 
+// Session lifecycle.
 async function createSession(romPath: string, ctx: ExtensionCommandContext, config: Awaited<ReturnType<typeof loadConfig>>): Promise<NesSession | null> {
 	let romData: Uint8Array;
 	try {
@@ -323,6 +328,7 @@ async function attachSession(
 	return shouldStop;
 }
 
+// Command registration.
 export default function (pi: ExtensionAPI) {
 	pi.on("session_shutdown", async () => {
 		if (activeSession) {

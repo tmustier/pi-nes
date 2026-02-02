@@ -15,6 +15,7 @@ const FALLBACK_TMP_DIR = "/tmp";
 const SHM_DIR = "/dev/shm";
 const IMAGE_HEIGHT_RATIO = 0.9;
 
+// Renderer state + native addon loading.
 const require = createRequire(import.meta.url);
 
 interface SharedMemoryHandle {
@@ -347,6 +348,37 @@ export class NesImageRenderer {
 	}
 }
 
+// Kitty graphics protocol (ESC_G ... ESC\\).
+// t=f (file) / t=s (shared memory), f=24 (RGB), p=1 (no scaling), q=2 (quiet), z=layer.
+function buildKittyParams(
+	transport: "f" | "s",
+	options: {
+		widthPx: number;
+		heightPx: number;
+		dataSize: number;
+		columns?: number;
+		rows?: number;
+		imageId?: number;
+		zIndex?: number;
+	},
+): string[] {
+	const params: string[] = [
+		"a=T",
+		"f=24",
+		`t=${transport}`,
+		"p=1",
+		"q=2",
+		`s=${options.widthPx}`,
+		`v=${options.heightPx}`,
+		`S=${options.dataSize}`,
+	];
+	if (options.columns) params.push(`c=${options.columns}`);
+	if (options.rows) params.push(`r=${options.rows}`);
+	if (options.imageId) params.push(`i=${options.imageId}`);
+	if (options.zIndex !== undefined) params.push(`z=${options.zIndex}`);
+	return params;
+}
+
 function encodeKittyRawFile(
 	base64Path: string,
 	options: {
@@ -359,21 +391,7 @@ function encodeKittyRawFile(
 		zIndex?: number;
 	},
 ): string {
-	const params: string[] = [
-		"a=T",
-		"f=24",
-		"t=f",
-		"p=1",
-		`q=2`,
-		`s=${options.widthPx}`,
-		`v=${options.heightPx}`,
-		`S=${options.dataSize}`,
-	];
-	if (options.columns) params.push(`c=${options.columns}`);
-	if (options.rows) params.push(`r=${options.rows}`);
-	if (options.imageId) params.push(`i=${options.imageId}`);
-	if (options.zIndex !== undefined) params.push(`z=${options.zIndex}`);
-
+	const params = buildKittyParams("f", options);
 	return `\x1b_G${params.join(",")};${base64Path}\x1b\\`;
 }
 
@@ -389,24 +407,11 @@ function encodeKittyRawSharedMemory(
 		zIndex?: number;
 	},
 ): string {
-	const params: string[] = [
-		"a=T",
-		"f=24",
-		"t=s",
-		"p=1",
-		`q=2`,
-		`s=${options.widthPx}`,
-		`v=${options.heightPx}`,
-		`S=${options.dataSize}`,
-	];
-	if (options.columns) params.push(`c=${options.columns}`);
-	if (options.rows) params.push(`r=${options.rows}`);
-	if (options.imageId) params.push(`i=${options.imageId}`);
-	if (options.zIndex !== undefined) params.push(`z=${options.zIndex}`);
-
+	const params = buildKittyParams("s", options);
 	return `\x1b_G${params.join(",")};${base64Name}\x1b\\`;
 }
 
+// Temp file/SHM selection.
 function resolveRawDir(): string {
 	const candidates = [process.env.TMPDIR, SHM_DIR, FALLBACK_TMP_DIR, os.tmpdir()].filter(
 		(value): value is string => Boolean(value && value.length > 0),
@@ -425,6 +430,7 @@ function resolveRawDir(): string {
 	return os.tmpdir();
 }
 
+// Layout helpers.
 function getAvailableRows(tui: TUI, footerRows: number): number {
 	return Math.max(1, tui.terminal.rows - footerRows);
 }

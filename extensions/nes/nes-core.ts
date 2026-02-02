@@ -179,7 +179,10 @@ class NativeNesCore implements NesCore {
 		return this.nes.getDebugState();
 	}
 
-	dispose(): void {}
+	dispose(): void {
+		// No explicit native teardown required; napi instance is GC-managed.
+		this.hasSram = false;
+	}
 }
 
 export function createNesCore(options: CreateNesCoreOptions = {}): NesCore {
