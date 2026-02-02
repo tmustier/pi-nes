@@ -9,7 +9,7 @@
 - Purpose: carry project-specific fixes and act as upstream-of-record for this vendor copy.
 
 ## Current Vendor Snapshot
-- Source commit/tag: `a69898b` (fork master)
+- Source commit/tag: `28b6e9b` (fork master)
 - Vendored on: 2026-02-02
 - Local patch set: SRAM helpers, CHR RAM support, mapper fixes, PPU timing tweaks, debug hooks, palette index clamp.
 
