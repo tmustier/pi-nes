@@ -61,6 +61,8 @@ export class NesSession {
 		dropped: 0,
 	};
 	private readonly loopDelay = monitorEventLoopDelay({ resolution: 10 });
+	private fatalErrorLogged = false;
+	private saveErrorLogged = false;
 
 	constructor(options: NesSessionOptions) {
 		this.core = options.core;
@@ -210,7 +212,12 @@ export class NesSession {
 				this.statsWindow.ticks = 0;
 				this.statsWindow.dropped = 0;
 			}
-		} catch {
+		} catch (error) {
+			if (!this.fatalErrorLogged) {
+				this.fatalErrorLogged = true;
+				const message = error instanceof Error ? error.message : String(error);
+				console.error(`NES session crashed: ${message}`);
+			}
 			void this.stop();
 		}
 	}
@@ -230,6 +237,12 @@ export class NesSession {
 		try {
 			await saveSram(this.saveDir, this.romPath, sram);
 			this.core.markSramSaved();
+		} catch (error) {
+			if (!this.saveErrorLogged) {
+				this.saveErrorLogged = true;
+				const message = error instanceof Error ? error.message : String(error);
+				console.warn(`NES save failed: ${message}`);
+			}
 		} finally {
 			this.saveInFlight = false;
 		}

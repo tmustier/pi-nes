@@ -251,7 +251,7 @@ async function createSession(romPath: string, ctx: ExtensionCommandContext, conf
 		const message = error instanceof Error ? error.message : String(error);
 		ctx.ui.notify(`Failed to initialize NES core: ${message}`, "error");
 		ctx.ui.notify(
-			"Build native core: cd ~/Projects/pi-nes/extensions/nes/native/nes-core && npm install && npm run build",
+			"Build native core: cd extensions/nes/native/nes-core && npm install && npm run build",
 			"warning",
 		);
 		return null;
