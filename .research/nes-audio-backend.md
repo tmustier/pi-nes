@@ -65,3 +65,12 @@ Audio output was disabled after `speaker` triggered a high-severity advisory (GH
 - Implement a ring buffer (`ringbuf` or custom) for f32 samples from `Apu`.
 - Maintain 44.1kHz (APU sample_period already targets 44.1k). If the device rate differs, resample or adjust sample_period.
 - Gate behind config (`enableAudio`) and compile-time feature flag so builds without audio remain minimal.
+
+## Implementation plan (cpal)
+1. **Dependencies/feature flag**: add `cpal` + ring buffer crate under a `audio-cpal` feature in `extensions/nes/native/nes-core/Cargo.toml`.
+2. **Ring buffer**: implement a lock-free f32 ring buffer (e.g., `ringbuf`) shared between APU producer and audio callback consumer.
+3. **APU wiring**: create a `NativeAudio` that pushes samples into the ring buffer; swap in when audio enabled.
+4. **cpal stream**: create default output stream (f32, mono or stereo) and drain the ring buffer in the callback; fill silence on underrun.
+5. **NAPI toggle**: expose `set_audio_enabled(bool)` (or `enable_audio`) to start/stop the stream at runtime.
+6. **JS config**: wire `enableAudio` to the native toggle; keep default `false`.
+7. **Docs**: describe build requirements + opt-in behavior in README/spec.
