@@ -36,6 +36,13 @@ pi-nes/
 
 The emulator uses the [`nes_rust`](https://crates.io/crates/nes_rust) crate (vendored + patched in `native/nes-core/vendor/nes_rust` for SRAM helpers) with [napi-rs](https://napi.rs) bindings.
 
+### Vendored `nes_rust` workflow
+
+- Source of truth is the fork (intended): `https://github.com/tmustier/nes-rust`.
+- Make changes in the fork first, then re-vendor via `scripts/update-vendor-nes-rust.sh`.
+- Update `extensions/nes/native/nes-core/vendor/nes_rust/VENDOR.md` with the fork commit + date + patch summary.
+- Keep TODO inventory in `extensions/nes/native/nes-core/vendor/nes_rust/TODO_INVENTORY.md`.
+
 **API exposed to JavaScript:**
 - `new NativeNes()` - Create emulator instance
 - `setRom(Uint8Array)` - Load ROM data

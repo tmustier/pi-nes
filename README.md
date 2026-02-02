@@ -106,6 +106,12 @@ Set `"renderer": "text"` if you prefer the ANSI renderer or have display issues.
 - **No audio** — Sound is not currently supported
 - **No save states** — Only battery-backed SRAM saves work
 
+## Vendored Dependencies
+
+- `nes_rust` is vendored under `extensions/nes/native/nes-core/vendor/nes_rust`.
+- Fork: https://github.com/tmustier/nes-rust (upstream: https://github.com/takahirox/nes-rust)
+- Update helper: `scripts/update-vendor-nes-rust.sh`
+
 ---
 
 ## Building from Source
