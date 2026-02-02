@@ -61,6 +61,8 @@ export class NesImageRenderer {
 	private sharedMemoryModule: KittyShmModule | null = null;
 	private lastFrameHash = 0;
 	private rawVersion = 0;
+	private lastLines: string[] = [];
+	private readonly renderErrors = new Set<string>();
 
 	render(
 		frameBuffer: FrameBuffer,
@@ -74,12 +76,17 @@ export class NesImageRenderer {
 		if (caps.images === "kitty") {
 			const shared = this.renderKittySharedMemory(frameBuffer, tui, widthCells, footerRows, pixelScale, padToHeight);
 			if (shared) {
+				this.lastLines = [...shared];
 				return shared;
 			}
-			return this.renderKittyRaw(frameBuffer, tui, widthCells, footerRows, pixelScale, padToHeight);
+			const raw = this.renderKittyRaw(frameBuffer, tui, widthCells, footerRows, pixelScale, padToHeight);
+			this.lastLines = [...raw];
+			return raw;
 		}
 
-		return this.renderPng(frameBuffer, tui, widthCells, footerRows, pixelScale, padToHeight);
+		const png = this.renderPng(frameBuffer, tui, widthCells, footerRows, pixelScale, padToHeight);
+		this.lastLines = [...png];
+		return png;
 	}
 
 	dispose(tui: TUI): void {
@@ -89,6 +96,8 @@ export class NesImageRenderer {
 		this.cachedImage = undefined;
 		this.cachedRaw = undefined;
 		this.lastFrameHash = 0;
+		this.lastLines = [];
+		this.renderErrors.clear();
 		if (this.sharedMemoryQueue.length > 0 && this.sharedMemoryModule) {
 			for (const handle of this.sharedMemoryQueue) {
 				try {
@@ -172,9 +181,13 @@ export class NesImageRenderer {
 		const layout = computeKittyLayout(tui, widthCells, footerRows, pixelScale);
 		const { availableRows, columns, rows, padLeft } = layout;
 
-		this.fillRawBuffer(frameBuffer);
-		const fd = this.ensureRawFile();
-		fs.writeSync(fd, this.rawBuffer, 0, this.rawBuffer.length, 0);
+		try {
+			this.fillRawBuffer(frameBuffer);
+			const fd = this.ensureRawFile();
+			fs.writeSync(fd, this.rawBuffer, 0, this.rawBuffer.length, 0);
+		} catch (error) {
+			return this.handleRenderError("kitty-raw", error);
+		}
 
 		let cached = this.cachedRaw;
 		if (!cached || cached.columns !== columns || cached.rows !== rows) {
@@ -220,26 +233,30 @@ export class NesImageRenderer {
 
 		const hash = hashFrame(frameBuffer, targetWidth, targetHeight);
 		if (!this.cachedImage || this.lastFrameHash !== hash) {
-			const png = new PNG({ width: targetWidth, height: targetHeight });
-			for (let y = 0; y < targetHeight; y += 1) {
-				const srcY = Math.floor((y / targetHeight) * FRAME_HEIGHT);
-				for (let x = 0; x < targetWidth; x += 1) {
-					const srcX = Math.floor((x / targetWidth) * FRAME_WIDTH);
-					const [r, g, b] = readRgb(frameBuffer, srcY * FRAME_WIDTH + srcX);
-					const idx = (y * targetWidth + x) * 4;
-					png.data[idx] = r;
-					png.data[idx + 1] = g;
-					png.data[idx + 2] = b;
-					png.data[idx + 3] = 0xff;
+			try {
+				const png = new PNG({ width: targetWidth, height: targetHeight });
+				for (let y = 0; y < targetHeight; y += 1) {
+					const srcY = Math.floor((y / targetHeight) * FRAME_HEIGHT);
+					for (let x = 0; x < targetWidth; x += 1) {
+						const srcX = Math.floor((x / targetWidth) * FRAME_WIDTH);
+						const [r, g, b] = readRgb(frameBuffer, srcY * FRAME_WIDTH + srcX);
+						const idx = (y * targetWidth + x) * 4;
+						png.data[idx] = r;
+						png.data[idx + 1] = g;
+						png.data[idx + 2] = b;
+						png.data[idx + 3] = 0xff;
+					}
 				}
+				const buffer = PNG.sync.write(png, { deflateLevel: 0, filterType: 0 });
+				this.cachedImage = {
+					base64: buffer.toString("base64"),
+					width: targetWidth,
+					height: targetHeight,
+				};
+				this.lastFrameHash = hash;
+			} catch (error) {
+				return this.handleRenderError("png", error);
 			}
-			const buffer = PNG.sync.write(png, { deflateLevel: 0, filterType: 0 });
-			this.cachedImage = {
-				base64: buffer.toString("base64"),
-				width: targetWidth,
-				height: targetHeight,
-			};
-			this.lastFrameHash = hash;
 		}
 
 		const image = new Image(
@@ -252,6 +269,15 @@ export class NesImageRenderer {
 
 		const padded = applyHorizontalPadding(image.render(widthCells), padLeft);
 		return padToHeight ? centerLines(padded, availableRows) : padded;
+	}
+
+	private handleRenderError(kind: string, error: unknown): string[] {
+		if (!this.renderErrors.has(kind)) {
+			this.renderErrors.add(kind);
+			const message = error instanceof Error ? error.message : String(error);
+			console.warn(`NES renderer ${kind} failed: ${message}`);
+		}
+		return this.lastLines.length > 0 ? [...this.lastLines] : [];
 	}
 
 	private fillRawBuffer(frameBuffer: FrameBuffer): void {
