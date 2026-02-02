@@ -45,6 +45,7 @@ export class NesSession {
 	private readonly maxCatchUpFrames: number;
 	private renderHook: (() => void) | null = null;
 	private tickTimer: ReturnType<typeof setInterval> | null = null;
+	private renderTimer: ReturnType<typeof setInterval> | null = null;
 	private saveTimer: ReturnType<typeof setInterval> | null = null;
 	private saveInFlight = false;
 	private stopping = false;
@@ -109,6 +110,8 @@ export class NesSession {
 			this.tick();
 		}, this.frameIntervalMs);
 
+		this.startRenderTimer();
+
 		this.saveTimer = setInterval(() => {
 			void this.saveIfNeeded(false);
 		}, this.saveIntervalMs);
@@ -116,11 +119,20 @@ export class NesSession {
 
 	setRenderHook(hook: (() => void) | null): void {
 		this.renderHook = hook;
+		if (hook) {
+			this.startRenderTimer();
+		} else {
+			this.stopRenderTimer();
+		}
 	}
 
 	setRenderIntervalMs(intervalMs: number): void {
 		this.renderIntervalMs = Math.max(0, intervalMs);
 		this.stats.renderIntervalMs = this.renderIntervalMs;
+		if (this.renderTimer) {
+			this.stopRenderTimer();
+			this.startRenderTimer();
+		}
 	}
 
 	getStats(): NesSessionStats {
@@ -136,6 +148,7 @@ export class NesSession {
 			clearInterval(this.tickTimer);
 			this.tickTimer = null;
 		}
+		this.stopRenderTimer();
 		this.loopDelay.disable();
 		if (this.saveTimer) {
 			clearInterval(this.saveTimer);
@@ -143,6 +156,28 @@ export class NesSession {
 		}
 		await this.saveIfNeeded(true);
 		this.core.dispose();
+	}
+
+	private startRenderTimer(): void {
+		if (this.renderTimer || !this.renderHook || this.stopping) {
+			return;
+		}
+		const intervalMs = this.renderIntervalMs > 0 ? this.renderIntervalMs : this.frameIntervalMs;
+		this.renderTimer = setInterval(() => {
+			if (!this.renderHook || this.stopping) {
+				return;
+			}
+			this.lastRenderTime = performance.now();
+			this.statsWindow.renders += 1;
+			this.renderHook();
+		}, Math.max(1, intervalMs));
+	}
+
+	private stopRenderTimer(): void {
+		if (this.renderTimer) {
+			clearInterval(this.renderTimer);
+			this.renderTimer = null;
+		}
 	}
 
 	private tick(): void {
@@ -176,12 +211,6 @@ export class NesSession {
 
 			for (let i = 0; i < framesToRun; i += 1) {
 				this.core.tick();
-			}
-
-			if (this.renderHook && now - this.lastRenderTime >= this.renderIntervalMs) {
-				this.lastRenderTime = now;
-				this.statsWindow.renders += 1;
-				this.renderHook();
 			}
 
 			const windowDuration = now - this.statsWindow.startTime;
