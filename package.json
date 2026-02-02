@@ -33,6 +33,8 @@
   "pi": {
     "extensions": [
       "./extensions/nes"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/tmustier/pi-nes/main/assets/demo.gif"
   }
 }
+
