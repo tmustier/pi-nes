@@ -17,6 +17,7 @@ import {
 import { displayPath, resolvePathInput } from "./paths.js";
 import { NesSession } from "./nes-session.js";
 import { listRoms } from "./roms.js";
+import { selectRomWithFilter } from "./rom-selector.js";
 import { loadSram } from "./saves.js";
 
 const IMAGE_RENDER_INTERVAL_BALANCED_MS = 1000 / 30;
@@ -45,32 +46,8 @@ async function selectRom(
 			return null;
 		}
 
-		const filterInput = await ctx.ui.input("Filter ROM list (optional)", "");
-		if (filterInput === undefined) {
-			return null;
-		}
-		const trimmedFilter = filterInput.trim();
-		let filteredRoms = roms;
-		if (trimmedFilter) {
-			const needle = trimmedFilter.toLowerCase();
-			filteredRoms = roms.filter((rom) => rom.name.toLowerCase().includes(needle));
-			if (filteredRoms.length === 0) {
-				ctx.ui.notify(`No ROMs match "${trimmedFilter}".`, "warning");
-				return null;
-			}
-		}
-
-		const options = filteredRoms.map((rom, index) => `${index + 1}. ${rom.name}`);
-		const selection = await ctx.ui.select("Select a ROM", options);
-		if (!selection) {
-			return null;
-		}
-		const index = options.indexOf(selection);
-		if (index < 0) {
-			ctx.ui.notify("ROM selection failed. Please try again.", "error");
-			return null;
-		}
-		return filteredRoms[index]?.path ?? null;
+		const selection = await selectRomWithFilter(ctx, roms);
+		return selection;
 	} catch {
 		ctx.ui.notify(`Failed to read ROM directory: ${romDir}. Update ${configPath} to set romDir.`, "error");
 		return null;
