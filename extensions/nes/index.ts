@@ -45,6 +45,20 @@ async function selectRom(
 			return null;
 		}
 
+		const searchInput = await ctx.ui.input("Search ROM name (exact match, leave blank to browse)", "");
+		if (searchInput === undefined) {
+			return null;
+		}
+		const trimmedSearch = searchInput.trim();
+		if (trimmedSearch) {
+			const needle = trimmedSearch.toLowerCase();
+			const match = roms.find((rom) => rom.name.toLowerCase() === needle);
+			if (match) {
+				return match.path;
+			}
+			ctx.ui.notify(`No ROM named "${trimmedSearch}". Showing full list.`, "warning");
+		}
+
 		const options = roms.map((rom, index) => `${index + 1}. ${rom.name}`);
 		const selection = await ctx.ui.select("Select a ROM", options);
 		if (!selection) {
