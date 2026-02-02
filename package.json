@@ -13,8 +13,18 @@
     "type": "git",
     "url": "https://github.com/tmustier/pi-nes.git"
   },
+  "scripts": {
+    "test": "node --import tsx --test tests/paths.test.ts tests/roms.test.ts tests/saves.test.ts tests/config.test.ts tests/input-map.test.ts",
+    "test:unit": "node --import tsx --test tests/paths.test.ts tests/roms.test.ts tests/saves.test.ts tests/config.test.ts tests/input-map.test.ts",
+    "test:core": "node --import tsx --test tests/core-smoke.test.ts",
+    "test:regression": "node --import tsx --test tests/regression.test.ts"
+  },
   "dependencies": {
     "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
   },
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": "*",
