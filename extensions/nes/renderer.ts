@@ -162,10 +162,9 @@ export class NesImageRenderer {
 			lines.push("");
 		}
 		const moveUp = rows > 1 ? `\x1b[${rows - 1}A` : "";
-		const moveDown = rows > 1 ? `\x1b[${rows - 1}B` : "";
 		this.rawVersion += 1;
 		const marker = `\x1b_pi:nes:${this.rawVersion}\x07`;
-		lines.push(`${moveUp}${sequence}${marker}${moveDown}`);
+		lines.push(`${moveUp}${sequence}${marker}`);
 
 		const padded = applyHorizontalPadding(lines, padLeft);
 		return padToHeight ? centerLines(padded, availableRows) : padded;
@@ -213,10 +212,9 @@ export class NesImageRenderer {
 			lines.push("");
 		}
 		const moveUp = rows > 1 ? `\x1b[${rows - 1}A` : "";
-		const moveDown = rows > 1 ? `\x1b[${rows - 1}B` : "";
 		this.rawVersion += 1;
 		const marker = `\x1b_pi:nes:${this.rawVersion}\x07`;
-		lines.push(`${moveUp}${cached.sequence}${marker}${moveDown}`);
+		lines.push(`${moveUp}${cached.sequence}${marker}`);
 
 		const padded = applyHorizontalPadding(lines, padLeft);
 		return padToHeight ? centerLines(padded, availableRows) : padded;
