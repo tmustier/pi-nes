@@ -2,13 +2,10 @@ import type { Component, TUI } from "@mariozechner/pi-tui";
 import { isKeyRelease, matchesKey, truncateToWidth } from "@mariozechner/pi-tui";
 import type { InputMapping } from "./input-map.js";
 import { DEFAULT_INPUT_MAPPING, getMappedButtons } from "./input-map.js";
-import type { FrameBuffer, NesButton, NesCore } from "./nes-core.js";
+import type { NesButton, FrameBuffer, NesCore } from "./nes-core.js";
 import type { NesSessionStats } from "./nes-session.js";
-import type { RendererMode } from "./renderer.js";
-import { NesImageRenderer } from "./renderer.js";
-
-const FRAME_WIDTH = 256;
-const FRAME_HEIGHT = 240;
+import type { RendererMode } from "./config.js";
+import { FRAME_HEIGHT, FRAME_WIDTH, NesImageRenderer } from "./renderer.js";
 
 function readRgb(frameBuffer: FrameBuffer, index: number): [number, number, number] {
 	const data = frameBuffer.data;
@@ -158,22 +155,39 @@ export class NesOverlayComponent implements Component {
 		const frameBuffer = this.core.getFrameBuffer();
 		const debugLines = this.debug ? this.buildDebugLines() : [];
 		const footerRows = this.debug ? 1 + debugLines.length : 1;
+
 		if (this.rendererMode === "image") {
-			const lines = this.imageRenderer.render(
-				frameBuffer,
-				this.tui,
-				width,
-				footerRows,
-				this.pixelScale,
-				!this.windowed,
-			);
-			for (const line of debugLines) {
-				lines.push(truncateToWidth(line, width));
-			}
-			lines.push(truncateToWidth(`\x1b[2m${footer}\x1b[0m`, width));
-			return lines;
+			const lines = this.renderImage(frameBuffer, width, footerRows);
+			return this.appendFooter(lines, width, debugLines, footer, "");
 		}
 
+		const { lines, padPrefix } = this.renderText(frameBuffer, width, footerRows);
+		return this.appendFooter(lines, width, debugLines, footer, padPrefix);
+	}
+
+	invalidate(): void {}
+
+	dispose(): void {
+		this.releaseAllButtons();
+		this.cleanupImage();
+	}
+
+	private renderImage(frameBuffer: FrameBuffer, width: number, footerRows: number): string[] {
+		return this.imageRenderer.render(
+			frameBuffer,
+			this.tui,
+			width,
+			footerRows,
+			this.pixelScale,
+			!this.windowed,
+		);
+	}
+
+	private renderText(
+		frameBuffer: FrameBuffer,
+		width: number,
+		footerRows: number,
+	): { lines: string[]; padPrefix: string } {
 		const maxFrameRows = Math.max(1, this.tui.terminal.rows - footerRows);
 		const scaleX = Math.max(1, Math.ceil(FRAME_WIDTH / width));
 		const scaleY = Math.max(1, Math.ceil(FRAME_HEIGHT / (maxFrameRows * 2)));
@@ -184,18 +198,22 @@ export class NesOverlayComponent implements Component {
 
 		const rawLines = renderHalfBlock(frameBuffer, targetCols, targetRows, scaleX, scaleY);
 		const lines = rawLines.map((line) => truncateToWidth(`${padPrefix}${line}`, width));
-		for (const line of debugLines) {
-			lines.push(truncateToWidth(`${padPrefix}${line}`, width));
-		}
-		lines.push(truncateToWidth(`\x1b[2m${padPrefix}${footer}\x1b[0m`, width));
-		return lines;
+		return { lines, padPrefix };
 	}
 
-	invalidate(): void {}
-
-	dispose(): void {
-		this.releaseAllButtons();
-		this.cleanupImage();
+	private appendFooter(
+		lines: string[],
+		width: number,
+		debugLines: string[],
+		footer: string,
+		padPrefix: string,
+	): string[] {
+		const output = [...lines];
+		for (const line of debugLines) {
+			output.push(truncateToWidth(`${padPrefix}${line}`, width));
+		}
+		output.push(truncateToWidth(`\x1b[2m${padPrefix}${footer}\x1b[0m`, width));
+		return output;
 	}
 
 	private cleanupImage(): void {

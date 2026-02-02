@@ -8,8 +8,8 @@ import { Image } from "@mariozechner/pi-tui";
 import { allocateImageId, deleteKittyImage, getCapabilities, getCellDimensions } from "@mariozechner/pi-tui";
 import type { FrameBuffer } from "./nes-core.js";
 
-const FRAME_WIDTH = 256;
-const FRAME_HEIGHT = 240;
+export const FRAME_WIDTH = 256;
+export const FRAME_HEIGHT = 240;
 const RAW_FRAME_BYTES = FRAME_WIDTH * FRAME_HEIGHT * 3;
 const FALLBACK_TMP_DIR = "/tmp";
 const SHM_DIR = "/dev/shm";
@@ -44,8 +44,6 @@ function getKittyShmModule(): KittyShmModule | null {
 	}
 	return kittyShmModule;
 }
-
-export type RendererMode = "image" | "text";
 
 export class NesImageRenderer {
 	private readonly imageId = allocateImageId();
