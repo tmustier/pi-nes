@@ -1,6 +1,6 @@
 {
   "name": "@tmustier/pi-nes",
-  "version": "0.2.37",
+  "version": "0.2.38",
   "description": "NES emulator extension for pi",
   "keywords": [
     "pi-package",
@@ -9,6 +9,7 @@
     "emulator"
   ],
   "type": "module",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tmustier/pi-nes.git"
