@@ -1,6 +1,6 @@
 # pi-nes
 
-Play NES games in your terminal. A [pi](https://github.com/mariozechner/pi) extension that runs a full NES emulator with Kitty graphics support.
+Play NES games in your terminal. A [Pi](https://pi.dev/) extension that runs a full NES emulator with Kitty graphics support.
 
 ![pi-nes demo](assets/demo.gif)
 
