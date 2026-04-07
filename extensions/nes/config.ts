@@ -19,7 +19,7 @@ export interface NesConfig {
 	keybindings: InputMapping;
 }
 
-const DEFAULT_ROM_DIR = path.join(path.sep, "roms", "nes");
+const DEFAULT_ROM_DIR = path.join(os.homedir(), "roms", "nes");
 
 export function getDefaultSaveDir(romDir: string): string {
 	return path.join(romDir, "saves");

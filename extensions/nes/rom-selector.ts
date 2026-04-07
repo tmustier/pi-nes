@@ -10,7 +10,7 @@ import {
 	type Component,
 	type Focusable,
 	type SelectItem,
-	getEditorKeybindings,
+	getKeybindings,
 } from "@mariozechner/pi-tui";
 import type { RomEntry } from "./roms.js";
 
@@ -62,18 +62,18 @@ class RomSelectorDialog extends Container implements Focusable {
 	}
 
 	handleInput(data: string): void {
-		const kb = getEditorKeybindings();
+		const kb = getKeybindings();
 		if (
-			kb.matches(data, "selectUp") ||
-			kb.matches(data, "selectDown") ||
-			kb.matches(data, "selectConfirm") ||
-			kb.matches(data, "selectCancel") ||
-			kb.matches(data, "pageUp") ||
-			kb.matches(data, "pageDown")
+			kb.matches(data, "tui.select.up") ||
+			kb.matches(data, "tui.select.down") ||
+			kb.matches(data, "tui.select.confirm") ||
+			kb.matches(data, "tui.select.cancel") ||
+			kb.matches(data, "tui.select.pageUp") ||
+			kb.matches(data, "tui.select.pageDown")
 		) {
 			if (this.selectList) {
 				this.selectList.handleInput(data);
-			} else if (kb.matches(data, "selectCancel")) {
+			} else if (kb.matches(data, "tui.select.cancel")) {
 				this.onCancel();
 			}
 			this.tui.requestRender();
