@@ -48,9 +48,9 @@ describe("config", () => {
 			assert.strictEqual(config.videoFilter, "ntsc-composite");
 		});
 
-		test("defaults invalid videoFilter to off", () => {
+		test("defaults invalid videoFilter to the configured default", () => {
 			const config = normalizeConfig({ videoFilter: "crt" });
-			assert.strictEqual(config.videoFilter, "off");
+			assert.strictEqual(config.videoFilter, DEFAULT_CONFIG.videoFilter);
 		});
 
 		test("clamps pixelScale to valid range", () => {
