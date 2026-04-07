@@ -105,10 +105,10 @@ Saves are flushed on quit and periodically during play.
 
 **Best experience:** a Kitty-protocol terminal like Ghostty, Kitty, or WezTerm (image protocol + key-up events).
 
-- **Kitty-protocol terminals** — Full graphics via image protocol (shared memory or file transport)
+- **Kitty-protocol terminals** — Full graphics via image protocol (shared memory or file transport). Image mode opens in pi's main custom UI instead of an overlay to avoid Ghostty black-screen rendering issues.
 - **Other terminals** — Falls back to ANSI half-block characters (`▀▄`)
 
-Set `"renderer": "text"` if you prefer the ANSI renderer or have display issues.
+Set `"renderer": "text"` if you prefer the ANSI renderer or want the classic overlay experience.
 
 ## Limitations
 

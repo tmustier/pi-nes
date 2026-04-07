@@ -397,15 +397,17 @@ async function attachSession(
 	let shouldStop = false;
 	try {
 		const isImageRenderer = config.renderer === "image";
-		const overlayOptions = {
-			overlay: true,
-			overlayOptions: {
-				width: isImageRenderer ? "90%" : "85%",
-				maxHeight: "90%",
-				anchor: "center",
-				margin: { top: 1 },
-			},
-		};
+		const overlayOptions = isImageRenderer
+			? undefined
+			: {
+				overlay: true,
+				overlayOptions: {
+					width: "85%",
+					maxHeight: "90%",
+					anchor: "center",
+					margin: { top: 1 },
+				},
+			};
 
 		const renderIntervalMs = config.renderer === "image"
 			? config.imageQuality === "high"
@@ -414,6 +416,10 @@ async function attachSession(
 			: TEXT_RENDER_INTERVAL_MS;
 		session.setRenderIntervalMs(renderIntervalMs);
 
+		// Image mode must run in the main custom UI instead of an overlay.
+		// Ghostty renders the same Kitty image sequence correctly on its own, but
+		// the pi overlay path can leave the image area black. Text mode still works
+		// well as an overlay, so keep that behavior there.
 		await ctx.ui.custom(
 			(tui, _theme, _keybindings, done) => {
 				session.setRenderHook(() => tui.requestRender());
@@ -452,7 +458,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("nes", {
-		description: "Play NES games in an overlay (Ctrl+Q to detach)",
+		description: "Play NES games in pi (Ctrl+Q to detach)",
 		handler: async (args, ctx) => {
 			if (!ctx.hasUI) {
 				ctx.ui.notify("NES requires interactive mode", "error");

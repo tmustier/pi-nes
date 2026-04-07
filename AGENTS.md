@@ -72,7 +72,7 @@ NES Core → RGB framebuffer (256×240×3) → Renderer → Terminal
 
 - Image mode (`renderer: "image"`) runs at ~30fps to keep emulation stable
 - Text mode (`renderer: "text"`) runs at ~60fps in an overlay
-- Image mode uses a windowed overlay (90% width/height) to avoid Kitty full-screen artifacts
+- Image mode runs in the main custom UI instead of an overlay to avoid Ghostty black-screen rendering issues while still using Kitty graphics
 
 ### Session Lifecycle
 
@@ -104,7 +104,7 @@ The addons compile to `index.node`. The JS wrapper (`index.js`) tries to load it
 ## Known Limitations
 
 - **Audio is opt-in** — Requires a native core built with `audio-cpal` and `enableAudio: true`.
-- **Overlay flicker** — Kitty overlay can show a 1-line flicker at overlay boundaries (see issue #9).
+- **Overlay flicker** — Text-mode overlays can show a 1-line flicker at overlay boundaries (see issue #9).
 - **No save states** — Only battery-backed SRAM saves are persisted.
 
 ## Release and Publishing
