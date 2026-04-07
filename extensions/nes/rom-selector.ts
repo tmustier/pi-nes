@@ -10,7 +10,7 @@ import {
 	type Component,
 	type Focusable,
 	type SelectItem,
-	getEditorKeybindings,
+	getKeybindings,
 } from "@mariozechner/pi-tui";
 import type { RomEntry } from "./roms.js";
 
@@ -62,7 +62,7 @@ class RomSelectorDialog extends Container implements Focusable {
 	}
 
 	handleInput(data: string): void {
-		const kb = getEditorKeybindings();
+		const kb = getKeybindings();
 		if (
 			kb.matches(data, "selectUp") ||
 			kb.matches(data, "selectDown") ||
