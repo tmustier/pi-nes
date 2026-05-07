@@ -1,4 +1,4 @@
-import { matchesKey } from "@mariozechner/pi-tui";
+import { matchesKey } from "@earendil-works/pi-tui";
 import type { NesButton } from "./nes-core.js";
 
 export type InputMapping = Record<NesButton, string[]>;

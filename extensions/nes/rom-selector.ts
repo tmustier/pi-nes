@@ -1,5 +1,5 @@
-import type { ExtensionCommandContext, Theme } from "@mariozechner/pi-coding-agent";
-import { DynamicBorder, getSelectListTheme } from "@mariozechner/pi-coding-agent";
+import type { ExtensionCommandContext, Theme } from "@earendil-works/pi-coding-agent";
+import { DynamicBorder, getSelectListTheme } from "@earendil-works/pi-coding-agent";
 import {
 	Container,
 	Input,
@@ -11,7 +11,7 @@ import {
 	type Focusable,
 	type SelectItem,
 	getKeybindings,
-} from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-tui";
 import type { RomEntry } from "./roms.js";
 
 const MAX_VISIBLE_ROMS = 10;

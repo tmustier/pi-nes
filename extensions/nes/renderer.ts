@@ -3,9 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { PNG } from "pngjs";
-import type { TUI } from "@mariozechner/pi-tui";
-import { Image } from "@mariozechner/pi-tui";
-import { allocateImageId, deleteKittyImage, getCapabilities, getCellDimensions } from "@mariozechner/pi-tui";
+import type { TUI } from "@earendil-works/pi-tui";
+import { Image } from "@earendil-works/pi-tui";
+import { allocateImageId, deleteKittyImage, getCapabilities, getCellDimensions } from "@earendil-works/pi-tui";
 import type { FrameBuffer } from "./nes-core.js";
 
 export const FRAME_WIDTH = 256;

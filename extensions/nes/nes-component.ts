@@ -1,5 +1,5 @@
-import type { Component, TUI } from "@mariozechner/pi-tui";
-import { isKeyRelease, matchesKey, truncateToWidth } from "@mariozechner/pi-tui";
+import type { Component, TUI } from "@earendil-works/pi-tui";
+import { isKeyRelease, matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
 import type { InputMapping } from "./input-map.js";
 import { DEFAULT_INPUT_MAPPING, getMappedButtons } from "./input-map.js";
 import type { NesButton, FrameBuffer, NesCore } from "./nes-core.js";
